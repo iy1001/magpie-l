@@ -182,6 +182,8 @@ is about 34%, and the page's own `task` time falls from 60–90% to 8–13%.
 `still()` is true throughout, so a flight ends in the same frame it began.
 The two test files that count flights and frames set `window.__magpieMotion`
 to fly them, so the code stays tested; `MOTION` off is what the window ships.
+Every figure above, and how each was read, is in
+[the performance record](../perf-baseline.md).
 
 ### Routing key and account folds
 

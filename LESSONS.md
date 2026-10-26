@@ -408,6 +408,31 @@ browser API is tried in the real Linux app too.
   reads.
 - Seen 1× (2026-10-11).
 
+**A page timed in a background tab is timed in the throttler.**
+- Chromium gives a hidden or occluded page a requestAnimationFrame a
+  second and holds its timers, so the numbers describe the throttling.
+  Measured that way on 10-26 the Routing page read `task=15.89%` and
+  1,507,000 layouts in 20 s; brought to the front the same page read
+  `task=2.18%` and 23 layouts. What gave it away: pausing all 36 of its
+  animations moved the throttled number 0.15 points (14.57% → 14.42%),
+  which no real animation cost would.
+- Read `document.hidden` and `document.visibilityState` before counting,
+  and call `Page.bringToFront` after navigating: a `goto` alone leaves
+  the tab the browser last had in front.
+- Seen 1× (2026-10-26).
+
+**A GUI cost is measured in the webview the user has, not in a browser.**
+- `magpie web` has no webview: it serves the page to whatever browser
+  opened it, so it measures that browser. The Routing page read
+  `task=6.5%` under two real requests in Chromium and 60–90% in the
+  window's own WebView2 with the same requests and the same data, the
+  difference being the renderer's own work.
+- `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`
+  opens the real window to CDP; `Performance.getMetrics` there is what
+  the user pays. The process tree (`Get-Process` CPU over the window's
+  tree) is the second opinion.
+- Seen 1× (2026-10-26).
+
 **Reproduce on CI's Go version.**
 - #1184 couldn't be reproduced on go1.27.1 locally. CI ran 1.26.x, and the
   cause was a Go 1.26.8 segfault. Docker `golang:1.26.8` with
@@ -515,6 +540,18 @@ cause:
   code standards.
 
 ## Merging and closing
+
+**A git command that discards work is only run on the paths named, and
+never on a tree holding uncommitted work.**
+- On 10-26, after `git add`ing a few paths, `git checkout -- .` was run to
+  clear what was staged. It restored every other modified file from the
+  index: six commits' worth of work, uncommitted, gone in one command.
+  The page assets were recovered only because a sandbox binary still had
+  the built copies inside it; the Go changes were written again from the
+  notes. `git stash`, or `git checkout -- <the paths>`, loses nothing.
+- Before a command that rewrites or discards, `git status` it, and commit
+  first when the work is worth more than the commit costs.
+- Seen 1× (2026-10-26).
 
 **A change no user can undo gets a real run per vendor before its tag.**
 - 9fcf6a6e7, f9ceac162 and 7d7dba31a (10-16) moved every deprecated
