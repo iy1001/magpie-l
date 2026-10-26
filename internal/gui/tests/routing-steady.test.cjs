@@ -149,6 +149,11 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
       for (const e of [v, ...v.children, ...document.querySelector("#rtMore").children]) window.__ro.observe(e);
       v.addEventListener("scroll", () => look("scroll"));
     }, view);
+    // what the accounts were tried in them, summed: the tally is worked out
+    // again only when the requests it weighs change, and these do
+    const tried = async () => page.evaluate(() => [...document.querySelectorAll(".rt-acts .tally > span:first-child")]
+      .map((e) => Number((e.textContent.match(/\d+/) || [0])[0])).reduce((a, b) => a + b, 0));
+    const triedBefore = await tried();
     for (const r of later) {
       for (let i = 0; i < 50 && !feed.next; i++) await page.waitForTimeout(50);
       const next = feed.next;
@@ -158,6 +163,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
     }
     await page.waitForTimeout(2500); // the plays end, the countdowns tick
     assert.equal(await page.locator(".rt-req").count(), first.length + later.length, "every request must be listed");
+    assert(triedBefore < (await tried()), "the tally must follow the requests that came in");
     const moves = await page.evaluate(() => { window.__ro.disconnect(); return window.__moves; });
     const after = await where();
 

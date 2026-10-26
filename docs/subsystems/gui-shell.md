@@ -151,6 +151,38 @@ with one on names no routing, and the mode paragraph says how to get one
 (`LONE`). The header is drawn again when the groups come in (`headOf`).
 See `routing-mode-goes.test.cjs`.
 
+### Routing account tally
+
+The "Accounts and keys" stage weighs every request listed: how often each
+account or key was tried, answered and failed, and how the latest found it
+(`renderActs` in [`plugins/routing/client.js`](../../internal/gui/assets/plugins/routing/client.js)).
+The page redraws it every second for its countdowns, so the weighing
+(`tallyOf`) is cached and worked out again only when the routes it weighs,
+the day looked at, or a rest lifted by hand changes: `poll` replaces a
+route with a new object only when a trace update changes it, so the same
+objects are the same set. The countdowns are drawn each second from the
+cached tally with `now()`, never from a stale clock. A page stopped on a day
+of 1754 requests spent 8.7ms a second on the walk for 7 rows, and its whole
+script time fell from 1.32% of a core to 0.38% once the walk was cached
+(`routing-steady.test.cjs` asserts the tally follows requests coming in,
+which fails when the cache never lets go).
+
+### Routing motion
+
+The stage holds still: no magpies fly a request out or its answer back, no
+dot pulses, no wire flows (`MOTION` in
+[`plugins/routing/client.js`](../../internal/gui/assets/plugins/routing/client.js),
+which puts `rt-still` on the root; `routing.css` takes every animation and
+transition out of `#view-routing`, the tray's `.panel-routing` and the
+context card under it). The rows, the story, the tally and which account
+answered are unchanged — the picture says the same thing without moving.
+Measured on WebView2 with real requests under way, the motion held a
+renderer and the GPU at 172% of a core together; without it the same load
+is about 34%, and the page's own `task` time falls from 60–90% to 8–13%.
+`still()` is true throughout, so a flight ends in the same frame it began.
+The two test files that count flights and frames set `window.__magpieMotion`
+to fly them, so the code stays tested; `MOTION` off is what the window ships.
+
 ### Routing key and account folds
 
 Three or more API keys, or three or more accounts, of one provider standing

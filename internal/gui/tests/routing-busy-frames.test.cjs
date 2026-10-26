@@ -57,6 +57,7 @@ function serve(lang, feed) {
 
 // counts of what the page measures, and of the frames it draws
 const init = () => {
+  window.__magpieMotion = true; // flies the magpies this file counts
   const n = window.__n = { len: 0, pt: 0, fmt: 0, frames: 0 };
   const P = SVGGeometryElement.prototype, len = P.getTotalLength, pt = P.getPointAtLength, fmt = Number.prototype.toLocaleString;
   P.getTotalLength = function () { n.len++; return len.call(this); };

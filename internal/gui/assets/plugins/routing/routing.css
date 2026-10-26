@@ -163,6 +163,16 @@
   .rt-accts li.now .dot, .rt-wires path.live, .rt-sky .pkt.held, .rt-accts li.new, .rt-accts li.hit, .rt-hub.tick, .rt-src.tick, .rt-cap.in, .rt-steps li.wait::before, .masking .pii { animation: none; }
   .rt-accts li { transition: none; }
 }
+/* The stage holds still: client.js's MOTION off puts this on <html>. Every
+   animation and transition in sight goes, whichever rule brought it —
+   the flights, the pulses, the flowing wires, the context card's state.
+   The tray's Routing panel keeps its own: it plays only while it is open,
+   open a moment at a time, so its cost is nothing to the page's. */
+.rt-still #view-routing *, .rt-still #view-routing *::before, .rt-still #view-routing *::after,
+.rt-still .ctx-card *, .rt-still .ctx-card *::before, .rt-still .ctx-card *::after {
+  animation: none !important;
+  transition: none !important;
+}
 /* The narrow and wide layouts below go by a box's own width, as container
    queries would: client.js sets max560 on a box 560px wide or less, min1150
    on one 1150px or wider. Not container queries: in WebKit they kept the
