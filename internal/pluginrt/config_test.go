@@ -60,6 +60,38 @@ func TestCompose(t *testing.T) {
 	}
 }
 
+// Lean keeps what is in use and nothing else: a plugin that can report
+// its use starts off and comes back on its own when something uses it; one
+// that can't report stays on, since unknown is never unused; the user's own
+// row still wins, and an in-use read that fails counts as in use.
+func TestComposeLean(t *testing.T) {
+	yes, no := true, false
+	ms := append(append([]Manifest{}, three...), Manifest{ID: "broken", InUse: func() (int, error) {
+		return 0, os.ErrPermission
+	}})
+	cs := byID(Compose(ms, File{Preset: PresetLean, Plugins: []Row{
+		{ID: "core", Enabled: &no},
+		{ID: "extra", Enabled: &yes},
+	}}))
+	if c := cs["core"]; c.Enabled || c.Source != FromUser {
+		t.Errorf("core can't report its use, so the user's off stands: %+v", c)
+	}
+	if c := cs["extra"]; !c.Enabled || c.Source != FromUser {
+		t.Errorf("extra can't report its use, so lean leaves it on and the user had it on: %+v", c)
+	}
+	if c := cs["used"]; !c.Enabled || c.Source != FromInUse || c.Chosen {
+		t.Errorf("used is in use: %+v", c)
+	}
+	if c := cs["broken"]; !c.Enabled || c.Source != FromInUse {
+		t.Errorf("a failed InUse read is never unused: %+v", c)
+	}
+	// a plugin that can report and reports none is off under lean
+	off := []Manifest{{ID: "idle", InUse: func() (int, error) { return 0, nil }}}
+	if c := Compose(off, File{Preset: PresetLean})[0]; c.Enabled || c.Source != FromPreset || c.Chosen {
+		t.Errorf("idle under lean: %+v", c)
+	}
+}
+
 // Every install is written All; the file there is never written over by
 // Settle once settled; Set keeps the other rows and the preset, and the
 // file it replaces is kept beside it.

@@ -21,7 +21,7 @@ import (
 
 // plugins.yml says which built-in plugins are on, and each one's config:
 //
-//	preset: essentials   # or all
+//	preset: essentials   # or all, or lean
 //	plugins:
 //	  - id: groups
 //	    enabled: true
@@ -43,6 +43,11 @@ import (
 const (
 	PresetEssentials = "essentials"
 	PresetAll        = "all"
+	// PresetLean keeps what is in use and nothing else: every plugin that
+	// can say how much of it is used starts off, and comes back on by
+	// itself the moment something does use it. A plugin that can't say
+	// stays on, since unknown is never unused.
+	PresetLean = "lean"
 )
 
 // File is plugins.yml as written.
@@ -92,9 +97,9 @@ func Load() (File, bool, error) {
 		return File{}, true, fmt.Errorf("%s doesn't parse: %w", Path(), err)
 	}
 	switch f.Preset {
-	case "", PresetAll, PresetEssentials:
+	case "", PresetAll, PresetEssentials, PresetLean:
 	default:
-		return File{}, true, fmt.Errorf("%s: no preset %q (essentials or all)", Path(), f.Preset)
+		return File{}, true, fmt.Errorf("%s: no preset %q (essentials, lean or all)", Path(), f.Preset)
 	}
 	return f, true, nil
 }
@@ -133,6 +138,11 @@ func Compose(ms []Manifest, f File) []Composed {
 			c.Config[k], c.Sources[k] = v, FromDefault
 		}
 		if f.Preset == PresetEssentials && !m.Essential {
+			c.Enabled, c.Source = false, FromPreset
+		}
+		// lean turns off only what can report its use, so what is in use
+		// comes back below on its own (FromInUse)
+		if f.Preset == PresetLean && !m.Essential && m.InUse != nil {
 			c.Enabled, c.Source = false, FromPreset
 		}
 		if r, ok := rows[m.ID]; ok {
@@ -260,8 +270,8 @@ func SetConfig(id string, config map[string]any) error {
 
 // SetPreset changes the preset, keeping the user's own rows.
 func SetPreset(preset string) error {
-	if preset != PresetAll && preset != PresetEssentials {
-		return fmt.Errorf("no preset %q (essentials or all)", preset)
+	if preset != PresetAll && preset != PresetEssentials && preset != PresetLean {
+		return fmt.Errorf("no preset %q (essentials, lean or all)", preset)
 	}
 	return update(func(f *File) { f.Preset = preset })
 }
