@@ -3154,7 +3154,8 @@ function sessionItem(s) {
   item.sess = s;
   const r = el("div", "row sess sess-link");
   const key = s.agent + ":" + s.id;
-  const here = featuresOff.has("sessions");
+  // no Sessions page at all: the same inline unfold as one switched off
+  const here = !magpie.page("sessions") || featuresOff.has("sessions");
   const unfolded = here && sessListOpen === key;
   r.tabIndex = 0;
   if (here) {
