@@ -30,6 +30,10 @@ type directoryEntry struct {
 // hidden. Such a listing is read again until it's older than this.
 const racyDirectory = 2 * time.Second
 
+// readDirectoryHook, set by a test, hears each folder listed for real;
+// nil everywhere else, which costs a branch.
+var readDirectoryHook func(path string)
+
 func readDirectory(path string) []os.DirEntry {
 	st, err := os.Stat(path)
 	if err != nil || !st.IsDir() {
@@ -42,6 +46,9 @@ func readDirectory(path string) []os.DirEntry {
 		return old.entries
 	}
 	at := time.Now()
+	if readDirectoryHook != nil {
+		readDirectoryHook(path)
+	}
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil

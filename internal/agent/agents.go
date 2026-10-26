@@ -57,9 +57,14 @@ var others = []*Agent{
 // Clients is everyone whose requests the gateway knows by name: every
 // agent, detected or not, and the others. It is what the Usage and
 // Routing views draw a request's client with.
-func Clients() []*Agent {
+func Clients() []*Agent { return ClientsOf(All()) }
+
+// ClientsOf is Clients over an All() the caller already has: the Agents page
+// needs both lists in one answer, and building the agents twice was twice
+// the work in each /api/state.
+func ClientsOf(all []*Agent) []*Agent {
 	var out []*Agent
-	for _, a := range All() {
+	for _, a := range all {
 		// a WSL agent's requests are its Windows twin's by their UA
 		if a.WSL == "" {
 			out = append(out, a)

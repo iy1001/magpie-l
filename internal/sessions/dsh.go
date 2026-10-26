@@ -73,13 +73,11 @@ func dshFiles() []file {
 	var out []file
 	parent := map[string]string{}
 	seen := map[string]bool{}
-	dshMu.Lock()
-	defer dshMu.Unlock()
 	for _, d := range dirs {
-		es, err := os.ReadDir(d)
-		if err != nil {
-			continue
-		}
+		// the listing is reused while the folder's own mtime and size say it
+		// hasn't changed: a home with 1154 sessions spent ~430ms a page on
+		// reading every folder again (discovery.go's readDirectory)
+		es := readDirectory(d)
 		// the latest format's file, the one written last of its two kinds
 		var f file
 		gen := -1
@@ -90,7 +88,14 @@ func dshFiles() []file {
 			}
 			n, _ := strconv.Atoi(m[1])
 			c := file{agent: "dsh", path: filepath.Join(d, e.Name()), main: true}
-			if !stat(&c) || n < gen || n == gen && !c.mod.After(f.mod) {
+			// the entry's own attributes carry the size and time: an extra
+			// stat per file was 1154 more system calls a pass
+			fi, err := e.Info()
+			if err != nil || !fi.Mode().IsRegular() {
+				continue
+			}
+			c.size, c.mod = fi.Size(), fi.ModTime()
+			if n < gen || n == gen && !c.mod.After(f.mod) {
 				continue
 			}
 			f, gen = c, n
@@ -98,12 +103,18 @@ func dshFiles() []file {
 		if gen < 0 {
 			continue
 		}
+		// the map is locked for the look and the store, never while a file
+		// is read: nothing that can block runs under a lock its reader needs
+		dshMu.Lock()
 		h, ok := dshHeads[f.path]
+		dshMu.Unlock()
 		if !ok {
 			if h, ok = dshReadHead(f.path); !ok {
 				continue
 			}
+			dshMu.Lock()
 			dshHeads[f.path] = h
+			dshMu.Unlock()
 		}
 		seen[f.path] = true
 		f.sid = h.ID
@@ -112,11 +123,13 @@ func dshFiles() []file {
 		}
 		out = append(out, f)
 	}
+	dshMu.Lock()
 	for p := range dshHeads {
 		if !seen[p] {
 			delete(dshHeads, p)
 		}
 	}
+	dshMu.Unlock()
 	for i := range out {
 		root := out[i].sid
 		for n := 0; parent[root] != "" && n < 64; n++ {

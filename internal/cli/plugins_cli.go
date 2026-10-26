@@ -30,7 +30,7 @@ const pluginUsage = `usage: magpie plugin [list] [--json]
        magpie plugin logout <provider>             forget the sign-in
        magpie plugin move|migrate <subscription>   run a built-in subscription's accounts on its community plugin
        magpie plugin builtin [on|off <id>]         list magpie's built-in plugins (Sessions, Library, routing groups…), or turn one on or off
-       magpie plugin preset essentials|all         start the built-in plugins from the Essentials preset, or from all of them
+       magpie plugin preset essentials|lean|all    start the built-in plugins from the Essentials preset, from only what is in use (lean), or from all of them
        magpie plugin dump [--json]                 what plugins.yml comes to: each built-in plugin, its config, and the layer each value is from`
 
 // pluginCmd: `magpie plugin …` — OpenCode's provider plugins and pi's

@@ -19485,7 +19485,6 @@ function renderSettings() {
   $("#wslAgentsRow").hidden = !s.wsl;
   $("#wslAgentsSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.noWSLAgents ? "off" : "on",
     (v) => savePrefs({ ...keep, noWSLAgents: v === "off" })));
-  renderSessionTerminal(s, keep);
   renderBarIcon();
   // what each row does, kept in its tooltip, the row saying its name
   // alone as Settings › General does (#2120); Open at login's says where
@@ -19705,45 +19704,6 @@ function renderLangPick(s, keep) {
   };
 }
 
-function renderSessionTerminal(s, keep) {
-  const row = $("#sessionTerminalRow");
-  row.hidden = !document.body.classList.contains("mac");
-  if (row.hidden) return;
-  const select = $("#sessionTerminalSelect");
-  const apps = [...(s.terminalApps || [])];
-  if (!apps.some((app) => app.id === "com.apple.Terminal")) apps.unshift({ id: "com.apple.Terminal", name: "Terminal" });
-  const chosen = s.sessionTerminal || "system";
-  // a default that is not a terminal opens Terminal, as the server does
-  const defaultApp = apps.find((app) => app.id === s.terminalDefault) || apps.find((app) => app.id === "com.apple.Terminal");
-  const options = [{ id: "system", name: t("System default ({name})", { name: defaultApp.name }) }];
-  for (const app of apps) {
-    if (app.id === defaultApp.id && app.id !== chosen) continue;
-    options.push({ id: app.id, name: app.id === defaultApp.id ? t("{name} (fixed)", { name: app.name }) : app.name });
-  }
-  if (!options.some((app) => app.id === chosen)) {
-    options.push({ id: chosen, name: t("Unavailable app ({id})", { id: chosen }) });
-  }
-  // the app's own menu, not a native select
-  select.dataset.value = chosen;
-  select.replaceChildren(el("span", "", options.find((app) => app.id === chosen).name), svg(CHEV, 11, 1.6));
-  select.onclick = (e) => {
-    e.stopPropagation();
-    if (select.classList.contains("open")) return closeProtoMenu();
-    openProtoMenu(select, options.map((app) => ({ v: app.id, name: app.name, note: "", literalName: true })), chosen, (v) => {
-      if (v === chosen) return;
-      // drawn at once; the save draws it again with what was kept
-      select.dataset.value = v;
-      select.firstChild.textContent = options.find((app) => app.id === v).name;
-      savePrefs({ ...keep, sessionTerminal: v === "system" ? "" : v });
-    }, "Session terminal", "sess-menu");
-  };
-}
-
-// renderSync: the Settings page's sync and backup — a remote keeping the
-// setup the same on every computer, and a sealed file to carry by hand.
-// One of the three opens a form below its row at a time.
-let syncOpen = ""; // "dav" | "export" | "import"
-const syncNames = { webdav: "WebDAV", s3: "S3", github: "GitHub" };
 function syncServers(v) {
   const servers = { ...v.servers };
   if (v.other) servers[v.other.kind] ||= v.other;
@@ -21221,7 +21181,8 @@ function renderImageGen(s, keep, box) {
   // gives it. The Library can be switched off (Essentials leaves it off)
   // and gateway mode has none, so the row says how to get there from
   // where the reader is, and takes them (#2091, nailuoGG)
-  const libOff = featuresOff.has("library");
+  // a Library that isn't there at all counts as off
+  const libOff = !magpie.page("library") || featuresOff.has("library");
   const sub = el("div", "sub wraps",
     v === "off" ? t("Agents given Magpie Image can't generate images or videos: the tool says it is off")
     : gatewayMode ? t("The model Magpie Image draws with, for the agents given the Magpie Image tool; images are saved in their project")
@@ -24670,7 +24631,6 @@ function navMorph(change) {
 // and picks them there, the page's own strip hidden (app.css)
 var NAV_SUBS = {
   usage: () => $("#usageTab"),
-  library: () => $("#view-library .lib-tabs"),
   plugins: () => $("#view-plugins .lib-tabs"),
   settings: () => $("#setTabs"),
 };
@@ -24870,7 +24830,13 @@ if (mode === "window") {
   let queued = false;
   const again = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; navSubs(); }); };
   const mo = new MutationObserver(() => { again(); if (document.body.classList.contains("side-nav")) tools(); });
-  for (const v of Object.keys(NAV_SUBS)) mo.observe($("#view-" + v), { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
+  // a page the window doesn't have (its plugin left out) has no element to
+  // watch: observing null threw, and the observer it was making ran its
+  // callback at once, before tools below was initialized
+  for (const v of Object.keys(NAV_SUBS)) {
+    const el = $("#view-" + v);
+    if (el) mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
+  }
   // a page whose head is only its tools (Library, Plugins, Settings) has them
   // in the title bar beside the sidebar (app.css): between where the reader
   // is and the window's own buttons, so no row of its own stands empty

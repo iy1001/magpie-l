@@ -1,0 +1,119 @@
+# Tests removed with the Sessions and Library pages
+#
+# The two pages left the window: plugins/all no longer imports
+# plugins/sessions or plugins/library, and index.html no longer loads their
+# scripts or stylesheets. These are the browser tests that opened those
+# pages or drove their controls. The engines are untouched — internal/sessions
+# and internal/library still run for the Usage page, the gateway's
+# conversations, backup, davsync, the CLI and the TUI — so their Go tests
+# stayed, and only these browser files went.
+#
+# To bring the pages back: restore the two imports in plugins/all/all.go and
+# the six tags in index.html, then restore these files from the commit before
+# the one that removed them.
+
+internal/gui/tests/by-agent.test.cjs
+internal/gui/tests/checkbox-look.test.cjs
+internal/gui/tests/every-skill.test.cjs
+internal/gui/tests/found-skill-pick-remove.test.cjs
+internal/gui/tests/gateway-conversations.test.cjs
+internal/gui/tests/github-token.test.cjs
+internal/gui/tests/group-skill-chips.test.cjs
+internal/gui/tests/images-library-way.test.cjs
+internal/gui/tests/import-all-skills.test.cjs
+internal/gui/tests/library-all.test.cjs
+internal/gui/tests/library-alma-profile.test.cjs
+internal/gui/tests/library-backups-top.test.cjs
+internal/gui/tests/library-chip-fan.test.cjs
+internal/gui/tests/library-desktop-skills.test.cjs
+internal/gui/tests/library-deveco.test.cjs
+internal/gui/tests/library-discover-jump.test.cjs
+internal/gui/tests/library-env-refs.test.cjs
+internal/gui/tests/library-gone-agents.test.cjs
+internal/gui/tests/library-hooks.test.cjs
+internal/gui/tests/library-ime-scroll.test.cjs
+internal/gui/tests/library-instr-busy.test.cjs
+internal/gui/tests/library-instr-sets.test.cjs
+internal/gui/tests/library-intro-width.test.cjs
+internal/gui/tests/library-items.test.cjs
+internal/gui/tests/library-linked-set.test.cjs
+internal/gui/tests/library-loading.test.cjs
+internal/gui/tests/library-mcp-copy-config.test.cjs
+internal/gui/tests/library-mcp-health.test.cjs
+internal/gui/tests/library-mcp-health-wsl.test.cjs
+internal/gui/tests/library-mcp-tools.test.cjs
+internal/gui/tests/library-mcp-tool-switch.test.cjs
+internal/gui/tests/library-mcp-unshown.test.cjs
+internal/gui/tests/library-null-agents.test.cjs
+internal/gui/tests/library-own-folder.test.cjs
+internal/gui/tests/library-pick-remove.test.cjs
+internal/gui/tests/library-row-open-scroll.test.cjs
+internal/gui/tests/library-row-remove.test.cjs
+internal/gui/tests/library-rtk-admin.test.cjs
+internal/gui/tests/library-rtk-agy.test.cjs
+internal/gui/tests/library-rtk-gain.test.cjs
+internal/gui/tests/library-rtk-nohook.test.cjs
+internal/gui/tests/library-rtk-opencode2.test.cjs
+internal/gui/tests/library-rtk-path.test.cjs
+internal/gui/tests/library-rtk-upgrade.test.cjs
+internal/gui/tests/library-servers-bulk.test.cjs
+internal/gui/tests/library-subagents.test.cjs
+internal/gui/tests/library-toggle-status.test.cjs
+internal/gui/tests/library-workbuddy-trust.test.cjs
+internal/gui/tests/library-zed-mcp.test.cjs
+internal/gui/tests/list-sort.test.cjs
+internal/gui/tests/market-address.test.cjs
+internal/gui/tests/market-featured-skill.test.cjs
+internal/gui/tests/market-have.test.cjs
+internal/gui/tests/market-partial.test.cjs
+internal/gui/tests/mcp-editor-cancel.test.cjs
+internal/gui/tests/mcp-oauth-app.test.cjs
+internal/gui/tests/mcp-signin.test.cjs
+internal/gui/tests/mcp-signin-health.test.cjs
+internal/gui/tests/mobile-web.test.cjs
+internal/gui/tests/own-skill.test.cjs
+internal/gui/tests/pick-skills.test.cjs
+internal/gui/tests/plan-credits.test.cjs
+internal/gui/tests/project-remove-keep.test.cjs
+internal/gui/tests/project-servers.test.cjs
+internal/gui/tests/remove-all-skills.test.cjs
+internal/gui/tests/remove-found-server.test.cjs
+internal/gui/tests/remove-found-skill.test.cjs
+internal/gui/tests/sessions-codex-provider.test.cjs
+internal/gui/tests/sessions-export.test.cjs
+internal/gui/tests/sessions-folder-delete.test.cjs
+internal/gui/tests/sessions-folder-paging.test.cjs
+internal/gui/tests/sessions-gateway-delete.test.cjs
+internal/gui/tests/sessions-manage.test.cjs
+internal/gui/tests/sessions-manage-paging.test.cjs
+internal/gui/tests/sessions-purge.test.cjs
+internal/gui/tests/sessions-relocate.test.cjs
+internal/gui/tests/sessions-search.test.cjs
+internal/gui/tests/sessions-subagents.test.cjs
+internal/gui/tests/sessions-talk.test.cjs
+internal/gui/tests/sessions-talk-model.test.cjs
+internal/gui/tests/sessions-toolbar.test.cjs
+internal/gui/tests/sessions-usage-off.test.cjs
+internal/gui/tests/sessions-usage-open.test.cjs
+internal/gui/tests/sessions-wsl-delete.test.cjs
+internal/gui/tests/settings-tabs-stick.test.cjs
+internal/gui/tests/shared-skills.test.cjs
+internal/gui/tests/sidebar-tab-top.test.cjs
+internal/gui/tests/signin-browser-down.test.cjs
+internal/gui/tests/skill-fold-all.test.cjs
+internal/gui/tests/skill-git-source.test.cjs
+internal/gui/tests/skill-gone.test.cjs
+internal/gui/tests/skill-groups.test.cjs
+internal/gui/tests/skill-group-shared.test.cjs
+internal/gui/tests/skill-how.test.cjs
+internal/gui/tests/skill-install-agents-all.test.cjs
+internal/gui/tests/skill-install-skip.test.cjs
+internal/gui/tests/skill-name-many-agents.test.cjs
+internal/gui/tests/skill-new-in-repo.test.cjs
+internal/gui/tests/skill-online-local.test.cjs
+internal/gui/tests/skill-parts.test.cjs
+internal/gui/tests/skill-regroup.test.cjs
+internal/gui/tests/skill-repo-groups.test.cjs
+internal/gui/tests/skill-too-big.test.cjs
+internal/gui/tests/skill-update-edited.test.cjs
+internal/gui/tests/title-bar-tools.test.cjs

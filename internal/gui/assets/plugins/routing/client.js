@@ -43,7 +43,16 @@ function routingPage(part) {
   const box = $("#rt");
   if (!box) return;
   const NS = "http://www.w3.org/2000/svg";
-  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // The stage doesn't move: no magpies flying, no pulsing dots, no wires
+  // flowing. In WebView2 the motion held a renderer at 60-90% of a core
+  // while requests were under way, and shape of the page says the same
+  // thing without it. Lighting up, the story and the rows are unchanged.
+  // true brings it all back; the tests that fly one set window.__magpieMotion.
+  const MOTION = window.__magpieMotion === true;
+  document.documentElement.classList.toggle("rt-still", !MOTION);
+  const still = () => !MOTION || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // the tray's panel plays only while it is open, so it keeps its flights
+  const stillPanel = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const shown = () => !$("#view-routing").hidden && !document.hidden;
   // steady redraws a part of the page where the reader is: WebKit has no
   // scroll anchoring, and a part emptied and filled again, measured between,
@@ -2982,9 +2991,19 @@ function routingPage(part) {
   function modelRest(a, m, rest, when) {
     if ((a.mrests.get(m)?.at || 0) <= when) a.mrests.set(m, { rest, at: when });
   }
-  // each account or key the kept requests weighed: how often it was
-  // tried, answered and failed in them, and how the latest found it
-  function renderActs(rs) {
+  // tallyOf is worked out again only when the set of routes it weighs
+  // changes: the tick redraws the tally every second for its countdowns, and
+  // walking every kept request again put 1754 routes through ~5000 object
+  // literals a second. poll replaces a route with a new object only when a
+  // trace update changes it, so the same objects are the same set.
+  let actsWas = null, liftN = 0;
+  function tallyOf(rs) {
+    const was = actsWas;
+    if (was && was.day === day && was.lift === liftN && was.rs.length === rs.length) {
+      let same = true;
+      for (let i = 0; i < rs.length && same; i++) same = rs[i] === was.rs[i];
+      if (same) return was.list;
+    }
     const by = new Map();
     // The agent's current sign-in uses its provider's ID; after switching,
     // that same account uses provider@user and the base ID names another.
@@ -3026,6 +3045,14 @@ function routingPage(part) {
       for (const [m, x] of a.mrests) if (x.rest.key && (liftedAt.get(x.rest.key) || 0) >= x.at) a.mrests.delete(m);
     }
     const list = [...by.values()].sort((x, y) => (x.w.name || "").localeCompare(y.w.name || "") || x.w.provider.localeCompare(y.w.provider) || rankOf(x.w) - rankOf(y.w) || x.pos - y.pos);
+    actsWas = { day, lift: liftN, rs, list };
+    return list;
+  }
+
+  // each account or key the kept requests weighed: how often it was
+  // tried, answered and failed in them, and how the latest found it
+  function renderActs(rs) {
+    const list = tallyOf(rs);
     setText(actLabel, t("Accounts and keys"));
     setText(actNote, t("over those requests"));
     // live, with a subscription account listed: a kept day's were weighed
@@ -3131,7 +3158,7 @@ function routingPage(part) {
         if (rest.why !== "restricted" && rest.why !== "verify") go.title = t("Ends the rest: the next request asks it again. Refused again, it rests again.");
         go.onclick = async () => {
           try {
-            for (const x of lifts) { await api("gateway/unrest", { key: x.key }); liftedAt.set(x.key, Date.now()); }
+            for (const x of lifts) { await api("gateway/unrest", { key: x.key }); liftedAt.set(x.key, Date.now()); liftN++; }
             render();
           } catch (e) { go.textContent = e.message; }
         };
@@ -6061,7 +6088,7 @@ function routingPage(part) {
     pRaf = 0;
     const going = [];
     for (const tr of pTrips) {
-      const k = pShown() && !still() ? Math.min(1, Math.max(0, (ts - tr.t0) / tr.ms)) : 1;
+      const k = pShown() && !stillPanel() ? Math.min(1, Math.max(0, (ts - tr.t0) / tr.ms)) : 1;
       const e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
       const L = pathLength(tr.n.wire);
       if (L) {
@@ -6082,9 +6109,9 @@ function routingPage(part) {
     pWait = [];
     for (const x of w) if (x.f() || performance.now() > x.by) x.res(); else pWait.push(x);
   }
-  const pRest = (ms) => new Promise((res) => setTimeout(res, pShown() && !still() ? ms : 0));
+  const pRest = (ms) => new Promise((res) => setTimeout(res, pShown() && !stillPanel() ? ms : 0));
   async function pPlay(id) {
-    if (!pBox || !pShown() || document.hidden || still() || pPlays.has(id) || pPlays.size >= 4) return;
+    if (!pBox || !pShown() || document.hidden || stillPanel() || pPlays.has(id) || pPlays.size >= 4) return;
     let r = routes.get(id);
     if (!r) return;
     pPlays.add(id);

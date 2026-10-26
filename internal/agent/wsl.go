@@ -894,6 +894,14 @@ var wsl struct {
 	dirty   bool
 }
 
+// wslFork is held while wsl.exe runs, and never together with wsl's own
+// mutex: one fork at a time, so a second reader doesn't stack a second
+// hung wsl.exe, and a reader that finds one under way answers from what
+// wsl.exe said last instead of waiting for it (#2341). wsl's mutex guards
+// the maps alone, so nothing that can block runs under the lock its
+// readers need (docs/code-standards.md).
+var wslFork sync.Mutex
+
 const (
 	wslListAge  = time.Minute
 	wslRetryAge = 10 * time.Minute
@@ -936,8 +944,14 @@ var wslRoot = func(name string) string {
 func wslStatePath() string { return filepath.Join(filepath.Dir(provider.Path()), "wsl.json") }
 
 func wslDistros() []distro {
+	// one wsl.exe at a time; a reader that finds a fork under way reads
+	// what the last one said rather than queue behind a hung process
+	forked := wslFork.TryLock()
+	if forked {
+		defer wslFork.Unlock()
+	}
+
 	wsl.Lock()
-	defer wsl.Unlock()
 	if wsl.seen == nil {
 		wsl.seen, wsl.probed, wsl.failed = map[string]*distro{}, map[string]bool{}, map[string]time.Time{}
 		if b, err := os.ReadFile(wslStatePath()); err == nil {
@@ -945,40 +959,80 @@ func wslDistros() []distro {
 		}
 		wslForgetOldBins()
 	}
-	if time.Since(wsl.at) > wslListAge {
-		wsl.names, wsl.listed = wslList("-l", "-q")
-		wsl.at = time.Now()
+	listDue := forked && time.Since(wsl.at) > wslListAge
+	runDue := forked && wslRunningDueLocked()
+	wsl.Unlock()
+
+	// wsl.exe runs here, with no lock held
+	var names []string
+	var listed bool
+	if listDue {
+		names, listed = wslList("-l", "-q")
 	}
-	wslRunningLocked()
+	var running []string
+	var runOK bool
+	if runDue {
+		running, runOK = wslList("-l", "--running", "-q")
+	}
+
+	// what a probe is owed, decided from those answers
+	wsl.Lock()
+	if listDue {
+		wsl.names, wsl.listed, wsl.at = names, listed, time.Now()
+	}
+	if runDue {
+		wslRunningApplyLocked(running, runOK)
+	}
 	installed := map[string]bool{}
-	cfg := wslConfig()
-	var out []distro
 	for _, n := range wsl.names {
 		installed[n] = true
-		// a distro that stopped is probed again once it runs: WSL may have
-		// been restarted meanwhile in another networking mode
 		if !wsl.running[n] {
 			delete(wsl.probed, n)
 		}
-		if wsl.running[n] && !wsl.probed[n] {
-			if t, ok := wsl.failed[n]; !ok || time.Since(t) > wslRetryAge {
-				if d := wslProbe(n); d == nil {
-					wsl.failed[n] = time.Now()
-				} else {
-					wsl.probed[n] = true
-					if wslKept(*d) {
-						if old := wsl.seen[n]; old != nil {
-							d.Values = old.Values
-							d.Was = wslWas(old.Was, old.Gateway, d.Gateway)
-						}
-						wsl.seen[n] = d
-					} else {
-						delete(wsl.seen, n)
-					}
-					wsl.dirty = true
-				}
+	}
+	var toProbe []string
+	if forked {
+		for _, n := range wsl.names {
+			if !wsl.running[n] || wsl.probed[n] {
+				continue
 			}
+			if t, ok := wsl.failed[n]; ok && time.Since(t) <= wslRetryAge {
+				continue
+			}
+			toProbe = append(toProbe, n)
 		}
+	}
+	wsl.Unlock()
+
+	// each probe runs wsl.exe too: still outside the lock
+	probes := make([]*distro, len(toProbe))
+	for i, n := range toProbe {
+		probes[i] = wslProbe(n)
+	}
+
+	wsl.Lock()
+	defer wsl.Unlock()
+	for i, n := range toProbe {
+		if d := probes[i]; d == nil {
+			wsl.failed[n] = time.Now()
+			continue
+		} else {
+			wsl.probed[n] = true
+			if wslKept(*d) {
+				if old := wsl.seen[n]; old != nil {
+					d.Values = old.Values
+					d.Was = wslWas(old.Was, old.Gateway, d.Gateway)
+				}
+				wsl.seen[n] = d
+			} else {
+				delete(wsl.seen, n)
+			}
+			wsl.dirty = true
+		}
+	}
+	cfg := wslConfig()
+	var out []distro
+	for _, n := range wsl.names {
 		d := wsl.seen[n]
 		if d == nil {
 			continue
@@ -1043,21 +1097,34 @@ func wslForgetOldBins() {
 // which starts none) when the last list is older than wslRunningAge. When
 // wsl.exe can't say, none is taken to run: a distro is never opened on a
 // guess.
-func wslRunningLocked() {
+func wslRunningDueLocked() bool {
 	age := wslRunningAge
 	if !wsl.runOK {
 		age = wslRunningFailedAge
 	}
-	if !wsl.runAt.IsZero() && time.Since(wsl.runAt) <= age {
-		return
-	}
-	run, ok := wslList("-l", "--running", "-q")
+	return wsl.runAt.IsZero() || time.Since(wsl.runAt) > age
+}
+
+// wslRunningApplyLocked stores what wsl.exe said, and when it said it
+func wslRunningApplyLocked(run []string, ok bool) {
 	wsl.runOK = ok
 	wsl.running = map[string]bool{}
 	for _, n := range run {
 		wsl.running[n] = true
 	}
 	wsl.runAt = time.Now()
+}
+
+// wslRunningLocked lists the running distros when it is due, taking wsl's
+// mutex off for the fork: callers hold it.
+func wslRunningLocked() {
+	if !wslRunningDueLocked() {
+		return
+	}
+	wsl.Unlock()
+	run, ok := wslList("-l", "--running", "-q")
+	wsl.Lock()
+	wslRunningApplyLocked(run, ok)
 }
 
 // wslUp is whether distro runs, as wsl.exe said at most wslRunningAge ago:

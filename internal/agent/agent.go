@@ -553,9 +553,12 @@ func (a *Agent) OwnModels(cur map[string]string) bool {
 }
 
 // Detected returns the agents present on this machine, in display order.
-func Detected() []*Agent {
+func Detected() []*Agent { return DetectedOf(All()) }
+
+// DetectedOf is Detected over an All() the caller already has.
+func DetectedOf(all []*Agent) []*Agent {
 	var out []*Agent
-	for _, a := range All() {
+	for _, a := range all {
 		if a.Detected() {
 			out = append(out, a)
 		}
