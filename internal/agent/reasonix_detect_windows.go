@@ -5,11 +5,41 @@ package agent
 import (
 	"path/filepath"
 	"strings"
+	"sync"
+	"testing"
+	"time"
 
 	"golang.org/x/sys/windows/registry"
 )
 
+// Reading every uninstall entry of two hives took 59% of Detected(), and
+// Detected runs on every /api/state: the list is read again at most once a
+// minute, and never under test.
+var reasonixDirsFor = func() time.Duration {
+	if testing.Testing() {
+		return 0
+	}
+	return time.Minute
+}()
+
+var reasonixDirs struct {
+	sync.Mutex
+	at   time.Time
+	dirs []string
+	read bool
+}
+
 func reasonixStudioDirs() []string {
+	reasonixDirs.Lock()
+	defer reasonixDirs.Unlock()
+	if reasonixDirs.read && time.Since(reasonixDirs.at) < reasonixDirsFor {
+		return reasonixDirs.dirs
+	}
+	reasonixDirs.dirs, reasonixDirs.at, reasonixDirs.read = readReasonixStudioDirs(), time.Now(), true
+	return reasonixDirs.dirs
+}
+
+func readReasonixStudioDirs() []string {
 	var dirs []string
 	for _, hive := range []registry.Key{registry.CURRENT_USER, registry.LOCAL_MACHINE} {
 		for _, root := range []string{`Software\Microsoft\Windows\CurrentVersion\Uninstall`, `Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`} {

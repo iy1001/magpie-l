@@ -2360,10 +2360,14 @@ func state() stateJSON {
 			s.Served++
 		}
 	}
-	for _, a := range agent.Clients() {
+	// one build of the agents for both lists: Detected walks every agent and
+	// Clients needs all of them, and building them twice was twice the work
+	// in each /api/state
+	all := agent.All()
+	for _, a := range agent.ClientsOf(all) {
 		s.Clients = append(s.Clients, clientJSON{ID: a.ID, Name: a.Name, Icon: a.Icon})
 	}
-	detected := agent.Detected()
+	detected := agent.DetectedOf(all)
 	now := make(map[string]map[string]string, len(detected))
 	for _, a := range detected {
 		if a.Follow != nil {
