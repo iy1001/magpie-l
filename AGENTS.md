@@ -1,5 +1,8 @@
 # Notes for coding agents
 
+This is the project's only instruction file for coding agents; the
+[lessons](LESSONS.md) are read before changing code (see Lessons below).
+
 ## Subsystem design and review
 
 Before changing a documented subsystem, read its
