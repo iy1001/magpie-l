@@ -298,4 +298,5 @@ func pruneIcons(f file) {
 			os.Remove(filepath.Join(IconDir(), e.Name()))
 		}
 	}
+	pruneSmallIcons()
 }
