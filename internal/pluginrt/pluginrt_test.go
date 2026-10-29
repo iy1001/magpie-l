@@ -88,6 +88,13 @@ func TestCompatible(t *testing.T) {
 	}
 }
 
+// leftOut are the plugin folders this tree keeps but doesn't gather: the
+// Sessions and Library pages left the window, and their packages stay so
+// that putting the two imports in plugins/all back brings them in. A name
+// here must still be a folder and still be left out; every other folder
+// must be gathered.
+var leftOut = []string{"library", "sessions"}
+
 // Core never imports a plugin, and a plugin never imports another: they
 // reach each other through services. main.go and plugins/all alone gather
 // them; a test may too.
@@ -132,7 +139,7 @@ func TestPluginsImportOnlyCore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// and every plugin is gathered
+	// and every plugin is gathered, but the ones this tree leaves out
 	dirs, err := os.ReadDir(filepath.Join(root, "plugins"))
 	if err != nil {
 		t.Fatal(err)
@@ -142,8 +149,20 @@ func TestPluginsImportOnlyCore(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range dirs {
-		if d.IsDir() && d.Name() != "all" && !strings.Contains(string(all), `"`+mod+d.Name()+`"`) {
+		if !d.IsDir() || d.Name() == "all" {
+			continue
+		}
+		gathered := strings.Contains(string(all), `"`+mod+d.Name()+`"`)
+		switch left := slices.Contains(leftOut, d.Name()); {
+		case left && gathered:
+			t.Errorf("plugins/%s is left out, but plugins/all imports it: take it out of leftOut", d.Name())
+		case !left && !gathered:
 			t.Errorf("plugins/all doesn't import plugins/%s", d.Name())
+		}
+	}
+	for _, name := range leftOut {
+		if st, err := os.Stat(filepath.Join(root, "plugins", name)); err != nil || !st.IsDir() {
+			t.Errorf("leftOut names plugins/%s, which is not a folder", name)
 		}
 	}
 }

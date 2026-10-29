@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -46,26 +47,37 @@ func TestBuiltinSwitch(t *testing.T) {
 	if err := pluginrt.SetPreset(pluginrt.PresetEssentials); err != nil {
 		t.Fatal(err)
 	}
-	if rec := postBuiltin(h, `{"id":"library","on":true}`); rec.Code != http.StatusOK {
-		t.Fatalf("library on: %d %s", rec.Code, rec.Body)
+	if rec := postBuiltin(h, `{"id":"warmups","on":true}`); rec.Code != http.StatusOK {
+		t.Fatalf("warmups on: %d %s", rec.Code, rec.Body)
 	} else {
 		var out []builtinJSON
 		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 			t.Fatal(err)
 		}
-		if len(out) != 14 {
-			t.Fatalf("the built-ins: %+v", out)
+		// the twelve the window has, by ID: a count alone misses one
+		// plugin dropped and another listed twice
+		got := make([]string, 0, len(out))
+		for _, b := range out {
+			got = append(got, b.ID)
+		}
+		slices.Sort(got)
+		want := make([]string, 0, len(pluginrt.Registered()))
+		for _, m := range pluginrt.Registered() {
+			want = append(want, m.ID)
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("the built-ins: %v, want %v", got, want)
 		}
 		for _, b := range out {
 			// the Gateway, Routing and Usage pages, the routing strategies,
 			// the gateway middleware, privacy masking, web search, key
 			// limits and plugin tools are essential: on in every preset
-			if b.On != (b.ID == "budget" || b.ID == "library" || b.ID == "gateway" || b.ID == "middleware" || b.ID == "redact" || b.ID == "rotation" || b.ID == "routing" || b.ID == "search" || b.ID == "tools" || b.ID == "usage") || b.On != (b.State == pluginrt.Active) {
-				t.Fatalf("after library on: %+v", out)
+			if b.On != (b.ID == "budget" || b.ID == "warmups" || b.ID == "gateway" || b.ID == "middleware" || b.ID == "redact" || b.ID == "rotation" || b.ID == "routing" || b.ID == "search" || b.ID == "tools" || b.ID == "usage") || b.On != (b.State == pluginrt.Active) {
+				t.Fatalf("after warmups on: %+v", out)
 			}
 		}
 	}
-	if !pluginrt.Running().Active("library") || pluginrt.Running().Active("sessions") {
+	if !pluginrt.Running().Active("warmups") || pluginrt.Running().Active("otel") {
 		t.Fatalf("the runtime: %+v", pluginrt.Running().Statuses())
 	}
 	if rec := postBuiltin(h, `{"id":"nope","on":true}`); rec.Code != http.StatusBadRequest {
@@ -129,10 +141,10 @@ func TestBootSaysBuiltinsOff(t *testing.T) {
 	if err := pluginrt.SetPreset(pluginrt.PresetEssentials); err != nil {
 		t.Fatal(err)
 	}
-	if err := pluginrt.Set("library", true); err != nil {
+	if err := pluginrt.Set("warmups", true); err != nil {
 		t.Fatal(err)
 	}
-	if b := boot(); !strings.Contains(b, `"featuresOff":["groups","otel","sessions","warmups"]`) {
+	if b := boot(); !strings.Contains(b, `"featuresOff":["groups","otel"]`) {
 		t.Fatalf("Essentials picked: %s", b)
 	}
 }

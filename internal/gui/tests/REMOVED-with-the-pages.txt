@@ -8,8 +8,18 @@
 # conversations, backup, davsync, the CLI and the TUI — so their Go tests
 # stayed, and only these browser files went.
 #
+# Three Go tests named the two as well, and were brought to the twelve the
+# window has: internal/gui/builtins_test.go's TestBuiltinSwitch switches
+# warmups on where it switched library, TestBootSaysBuiltinsOff expects
+# groups and otel off, and assets_revalidate_test.go's
+# TestPageNamesItsFilesByContent no longer asks index.html for their four
+# files. Bringing the pages back puts library and sessions back in all
+# three, and the count back to fourteen.
+#
 # To bring the pages back: restore the two imports in plugins/all/all.go and
-# the six tags in index.html, then restore these files from the commit before
+# the six tags in index.html, take their names out of `leftOut` in
+# internal/pluginrt/pluginrt_test.go (TestPluginsImportOnlyCore fails while a
+# name there is imported), then restore these files from the commit before
 # the one that removed them.
 
 internal/gui/tests/by-agent.test.cjs
