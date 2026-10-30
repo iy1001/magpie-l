@@ -53,6 +53,10 @@ type place struct {
 	// cold: a stopped distro's, whose files can't be looked at without
 	// starting it — an agent built there takes its files at their defaults
 	cold bool
+	// up asks whether the distro still runs, for one place on a distro the
+	// listing saw running: a distro stopped since would be started by the
+	// stat of a file in it (place.stopped); nil off a distro
+	up func() bool
 	// version is the agent's CLI's there, as the probe found it; "" when
 	// not known (one on this machine is asked itself)
 	version string
@@ -112,7 +116,7 @@ func (p place) hermesDefault() string {
 // exists is whether there is a file or folder at path, as an agent looks
 // for the one it reads; false at a cold place.
 func (p place) exists(path string) bool {
-	if p.cold {
+	if p.stopped() {
 		return false
 	}
 	_, err := os.Stat(path)
@@ -120,7 +124,17 @@ func (p place) exists(path string) bool {
 }
 
 // isDir is isDir at the place; false at a cold one.
-func (p place) isDir(path string) bool { return !p.cold && isDir(path) }
+func (p place) isDir(path string) bool { return !p.stopped() && isDir(path) }
+
+// stopped is whether magpie must not look into the place: a distro the
+// listing saw stopped, or one that has stopped since — asked of wsl.exe
+// again, never older than wslRunningAge, since a stat of it would start it.
+func (p place) stopped() bool {
+	if p.cold {
+		return true
+	}
+	return p.up != nil && !p.up()
+}
 
 func (p place) gw() string {
 	if p.base != nil {
@@ -262,7 +276,7 @@ func (d distro) place(id string) place {
 	if k, _, ok := strings.Cut(kind, "#"); ok {
 		kind = k
 	}
-	return place{home: d.local(d.Home), id: id, spell: d.native, sys: d.local, base: d.base, cold: !d.Running, version: d.Versions[kind]}
+	return place{home: d.local(d.Home), id: id, spell: d.native, sys: d.local, base: d.base, cold: !d.Running, up: d.live, version: d.Versions[kind]}
 }
 
 // wslKind is an agent magpie looks for in a distro: what the probe finds
@@ -770,6 +784,8 @@ func asleep(live *Agent, k wslKind, d distro) *Agent {
 				// ~/.kimi) is theirs to say, not the defaults it was built on
 				w := d
 				w.Running = true
+				// it runs now, whether or not wsl.exe has said so yet
+				w.up = nil
 				warm := k.in(w.place(live.ID))
 				wf := warm.Field(key)
 				if wf == nil || wf.Set == nil {
@@ -861,7 +877,10 @@ const wslCopilotDir = ".copilot"
 func copilotWSLHomes() []string {
 	var out []string
 	for _, h := range wslHomes() {
-		if h.Running && wslHasCopilot(h.Distro) {
+		// asked again here, at most wslRunningAge after the last answer:
+		// listing wslHomes is what the window shows, and reading a file in
+		// a distro stopped since would start it
+		if wslUp(h.Distro) && wslHasCopilot(h.Distro) {
 			out = append(out, h.Home)
 		}
 	}
@@ -914,6 +933,16 @@ const (
 	// ask that times out holds wsl's lock, and so the GUI, for 10s, and
 	// leaves a wsl.exe behind (#2341)
 	wslRunningFailedAge = 30 * time.Second
+	// wslShownAge is how long which distros run is taken as wsl.exe said
+	// for what the window shows: an agent listed awake or asleep, and which
+	// distros the sessions are listed in. Nothing is opened on it — every
+	// read of a distro's files asks again, within wslRunningAge (distro.live,
+	// wslUp, place.stopped) — so the window's own asking for its agents every
+	// couple of seconds used to keep a wsl.exe running all day for a page
+	// nobody was reading. A distro still to be probed is another matter:
+	// that runs wsl.exe in it, which starts a stopped one, so then the
+	// answer is asked for within wslRunningAge (wslProbeOwedLocked).
+	wslShownAge = 30 * time.Second
 )
 
 // wslOn is whether there is WSL to look in: on Windows, or in tests.
@@ -960,7 +989,7 @@ func wslDistros() []distro {
 		wslForgetOldBins()
 	}
 	listDue := forked && time.Since(wsl.at) > wslListAge
-	runDue := forked && wslRunningDueLocked()
+	runDue := forked && (wslShownDueLocked() || (wslRunningDueLocked() && wslProbeOwedLocked()))
 	wsl.Unlock()
 
 	// wsl.exe runs here, with no lock held
@@ -1097,12 +1126,38 @@ func wslForgetOldBins() {
 // which starts none) when the last list is older than wslRunningAge. When
 // wsl.exe can't say, none is taken to run: a distro is never opened on a
 // guess.
+// wslRunningDueLocked is whether which distros run must be asked again
+// before it is acted on: wslRunningAge when wsl.exe said, wslRunningFailedAge
+// when it couldn't.
 func wslRunningDueLocked() bool {
 	age := wslRunningAge
 	if !wsl.runOK {
 		age = wslRunningFailedAge
 	}
 	return wsl.runAt.IsZero() || time.Since(wsl.runAt) > age
+}
+
+// wslShownDueLocked is whether what the window shows of the distros is old
+// enough to be asked again: wslShownAge, not wslRunningAge, since nothing is
+// opened on it (see wslShownAge).
+func wslShownDueLocked() bool {
+	age := wslShownAge
+	if !wsl.runOK {
+		age = wslRunningFailedAge
+	}
+	return wsl.runAt.IsZero() || time.Since(wsl.runAt) > age
+}
+
+// wslProbeOwedLocked is whether a distro installed is still to be probed.
+// Probing runs wsl.exe in the distro, which starts a stopped one, so the
+// answer of which run has to be no older than wslRunningAge first.
+func wslProbeOwedLocked() bool {
+	for _, n := range wsl.names {
+		if !wsl.probed[n] {
+			return true
+		}
+	}
+	return false
 }
 
 // wslRunningApplyLocked stores what wsl.exe said, and when it said it

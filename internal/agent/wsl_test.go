@@ -358,6 +358,70 @@ func TestWSLRunningFailedKept(t *testing.T) {
 	}
 }
 
+// The window asks for its agents every couple of seconds. Answering that
+// must not run wsl.exe every wslRunningAge: what it shows is asked again at
+// wslShownAge, and only a read of a distro's files asks within
+// wslRunningAge (distro.live, place.stopped), which is what keeps a stopped
+// distro from being opened. Probing a distro still does ask that often:
+// probing runs wsl.exe in it, which starts a stopped one.
+func TestWSLShownWatchIsNotTheReadWatch(t *testing.T) {
+	codexHome(t, "", "")
+	// a distro the probe found no agent in: listing it opens nothing, so
+	// what the window shows costs no wsl.exe
+	fakeWSL(t, "Ubuntu\r\n", "Ubuntu\r\n", map[string]string{"Ubuntu": "home:/home/me\n"}, nil)
+	asks := 0
+	fake := wslRun
+	wslRun = func(d time.Duration, args ...string) ([]byte, error) {
+		if strings.Join(args, " ") == "-l --running -q" {
+			asks++
+		}
+		return fake(d, args...)
+	}
+	age := func(d time.Duration) {
+		wsl.Lock()
+		wsl.runAt = time.Now().Add(-d)
+		wsl.Unlock()
+	}
+	shown := func() {
+		t.Helper()
+		wslDistros()
+	}
+	shown()
+	base := asks
+	if base == 0 {
+		t.Fatal("the first listing did not ask which distros run")
+	}
+	// the window asks again a couple of seconds later: nothing to run
+	age(wslRunningAge + time.Second)
+	shown()
+	if asks != base {
+		t.Fatalf("showing the distros asked wsl.exe %d times past wslRunningAge", asks-base)
+	}
+	// what reads a distro's files is another matter: it asks again
+	wsl.Lock()
+	wslRunningLocked()
+	wsl.Unlock()
+	if asks != base+1 {
+		t.Fatalf("a read of the distro's files asked %d times", asks-base)
+	}
+	// and what the window shows is asked again at wslShownAge
+	age(wslShownAge + time.Second)
+	shown()
+	if asks != base+2 {
+		t.Fatalf("past wslShownAge the distros were not asked again: %d", asks-base)
+	}
+	// a distro still to probe is another matter: which run has to be no
+	// older than wslRunningAge, since probing runs wsl.exe in it
+	wsl.Lock()
+	wsl.names, wsl.probed, wsl.runAt = []string{"Ubuntu"}, map[string]bool{}, time.Now().Add(-(wslRunningAge + time.Second))
+	wsl.Unlock()
+	before, _ := asks, 0
+	shown()
+	if asks == before {
+		t.Fatal("a distro still to probe was probed on an answer older than wslRunningAge")
+	}
+}
+
 // nor opens it.
 func TestWSLStoppedSinceNotOpened(t *testing.T) {
 	codexHome(t, "", "")
