@@ -1119,9 +1119,9 @@ CPU profile（40 秒）：**91.1% idle**，剩下 `(program)` 5.95%（浏览器�
 ### 14.4 踩到的坑（也是 `96b6dfac` 那笔改测试的来源）
 
 `content-visibility: auto` 让屏外的卡**没有渲染文本**：`innerText` 读出来是空串，
-`allInnerTexts()` 是一串空串。于是 14 个碰 `.pm-card` 的浏览器测试里有 8 处读法失败，
-其中 `plugin-market` 那条**页级负断言**（`doesNotMatch(view.innerText(), …)`）会静默变成空断言 ——
-这是任何"只画一部分页面"的方案都会踩的雷，不只是这一个 CSS。
+`allInnerTexts()` 是一串空串。于是 10 个测试文件里 22 处读卡片文本的地方（`96b6dfac` 改的就是这些）
+在屏外卡上读出来是空串，其中 `plugin-market` 那条**页级负断言**（`doesNotMatch(view.innerText(), …)`）
+会静默变成空断言 —— 这是任何"只画一部分页面"的方案都会踩的雷，不只是这一个 CSS。
 
 改法是改读法，不是改方案：卡片内容读 `textContent` / `allTextContents`
 （Playwright 的 `allTextContents` 本来就是 textContent），页级负断言读 `textContent`，
@@ -1134,3 +1134,6 @@ CPU profile（40 秒）：**91.1% idle**，剩下 `(program)` 5.95%（浏览器�
 - `placeRows`（§12.5 ③）和 i18n 按语言拆（④）没动。
 - WebKit 的 `content-visibility`：Playwright 的 WebKit 确实应用它（跳过的卡上按钮尺寸为 0，
   滚进视口后才有值），真机 WebKitGTK 没验。
+- WebKit 上那 14 个文件、102 例，10-30 全绿。`plugin-update-button` 起初有一处重绘竞态
+  （npm 的答案重画卡片时，`scrollIntoViewIfNeeded` 拿到的元素已不在文档里；单跑红绿红各一次），
+  改成滚入视口失败就重来（最多 5 次、隔 50ms）后 6 例连过三次，整批 102/102。
