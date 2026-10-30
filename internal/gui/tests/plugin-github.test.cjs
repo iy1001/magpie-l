@@ -116,7 +116,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           assert.ok(order.indexOf("pm-manual") > order.lastIndexOf("pm-sec"), "the field stays last: " + order);
           assert.match(await sec.locator(".pm-sechead span").innerText(), /magpie-plugin/);
           const cards = sec.locator(".pm-card");
-          assert.deepEqual(await cards.locator(".pm-name b").allInnerTexts(), ["opencode-claude-auth", "opencode-quota", "agy-staff"], "the market's own package is its card alone");
+          assert.deepEqual(await cards.locator(".pm-name b").allTextContents(), ["opencode-claude-auth", "opencode-quota", "agy-staff"], "the market's own package is its card alone");
           assert.equal(await view.locator(".pm-card", { hasText: "Open Cursor" }).count(), 1);
 
           const c = cards.first();
@@ -201,7 +201,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           await view.locator(".pm-find input").fill("quota");
           const found = view.locator(".pm-sec", { has: page.locator("h3", { hasText: w.section }) });
           await page.waitForFunction(() => document.querySelectorAll("#view-plugins .pm-sec .pm-card").length === 1);
-          assert.deepEqual(await found.locator(".pm-name b").allInnerTexts(), ["opencode-quota"]);
+          assert.deepEqual(await found.locator(".pm-name b").allTextContents(), ["opencode-quota"]);
           await view.locator(".pm-find input").fill("nothing-like-it");
           await page.waitForFunction(() => !document.querySelector("#view-plugins .pm-sec .pm-card .pm-chip.warn"));
 

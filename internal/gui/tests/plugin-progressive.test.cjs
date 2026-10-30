@@ -86,13 +86,13 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         assert.equal(await card.locator(".pm-dl").count(), 0);
         const act = card.locator(".pm-act");
         assert.equal(await act.isDisabled(), true, "the button waits for npm");
-        assert.equal((await act.innerText()).trim(), "");
+        assert.equal((await act.textContent()).trim(), "");
 
         // npm answers: downloads, the version, Install, and the update out
         release();
         await card.locator(".pm-dl", { hasText: w.week }).waitFor();
-        assert.equal((await card.locator(".pm-ver").innerText()).trim(), "v0.2.0");
-        assert.equal((await act.innerText()).trim(), w.install);
+        assert.equal((await card.locator(".pm-ver").textContent()).trim(), "v0.2.0");
+        assert.equal((await act.textContent()).trim(), w.install);
         assert.equal(await act.isDisabled(), false);
         await view.page().locator(":is(.lib-tabs .opt, .nav-s):visible", { hasText: w.installed }).click();
         await view.locator(".pm-row .pm-chip.up", { hasText: w.out }).waitFor();

@@ -67,22 +67,22 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await page.route("**/*", server(lang));
         await page.goto("http://magpie.test/?view=plugins");
         const view = page.locator("#view-plugins");
-        const kinds = (r) => r.locator(".pm-chip.kind").allInnerTexts().then((a) => a.map((x) => x.trim()));
+        const kinds = (r) => r.locator(".pm-chip.kind").allTextContents().then((a) => a.map((x) => x.trim()));
         const sec = (name) => view.locator(".pm-sec").filter({ has: page.locator(".pm-sechead h3", { hasText: new RegExp("^" + name + "$") }) });
 
         // each kind in its own section, wearing its own chip
         await sec(w.tls).waitFor();
-        const subs = await sec(w.subs).locator(".pm-card").allInnerTexts();
+        const subs = await sec(w.subs).locator(".pm-card").allTextContents();
         assert.equal(subs.length, 1);
         assert.ok(subs[0].includes("X plan"));
         const tl = sec(w.tls).locator(".pm-card");
         assert.equal(await tl.count(), 1);
-        assert.ok((await tl.innerText()).includes("Calc tools"));
+        assert.ok((await tl.textContent()).includes("Calc tools"));
         assert.deepEqual(await kinds(tl), [w.tool]);
         assert.ok(await tl.locator(".pm-chip.kind.tl").count());
         const pg = sec(w.pgs).locator(".pm-card");
         assert.equal(await pg.count(), 1);
-        assert.ok((await pg.innerText()).includes("Glance page"));
+        assert.ok((await pg.textContent()).includes("Glance page"));
         assert.deepEqual(await kinds(pg), [w.page]);
 
         // the way to write one: the docs in the window's language, opened outside

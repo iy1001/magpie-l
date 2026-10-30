@@ -77,7 +77,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         const card = view.locator(`.pm-card[data-pkg="${QODER}"] .pm-act`);
         await card.locator("span", { hasText: w.signedIn }).waitFor();
         assert.ok(await card.evaluate((b) => b.classList.contains("done")));
-        assert.equal((await view.locator(`.pm-card[data-pkg="${ZED}"] .pm-act`).innerText()).trim(), w.signIn);
+        assert.equal((await view.locator(`.pm-card[data-pkg="${ZED}"] .pm-act`).textContent()).trim(), w.signIn);
 
         // Installed: the row names the other, quietly
         await view.page().locator(":is(.lib-tabs .opt, .nav-s):visible", { hasText: w.installed }).click();

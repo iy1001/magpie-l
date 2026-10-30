@@ -72,14 +72,14 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await page.route("**/*", server(lang));
         await page.goto("http://magpie.test/?view=plugins");
         const view = page.locator("#view-plugins");
-        const kinds = (r) => r.locator(".pm-chip.kind").allInnerTexts().then((a) => a.map((x) => x.trim()));
+        const kinds = (r) => r.locator(".pm-chip.kind").allTextContents().then((a) => a.map((x) => x.trim()));
 
         // Discover: the agent plugin in a section of its own, as an Agent
         const sec = view.locator(".pm-sec").filter({ has: page.locator(".pm-sechead h3", { hasText: new RegExp("^" + w.sec + "$") }) });
         await sec.waitFor();
         const card = sec.locator(".pm-card");
         assert.equal(await card.count(), 1);
-        assert.ok((await card.innerText()).includes("Aider"));
+        assert.ok((await card.textContent()).includes("Aider"));
         assert.deepEqual(await kinds(card), [w.agent]);
         assert.ok(await card.locator(".pm-chip.kind.ag").count());
         // yetone: 这里的 agent plugin 为什么没有 logo

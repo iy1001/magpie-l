@@ -79,7 +79,9 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
       try {
         await page.goto("http://magpie.test/?view=plugins");
         const sec = page.locator("#view-plugins .pm-ghsec");
-        await sec.locator(".pm-card").first().waitFor();
+        // the three ghosts stand until GitHub answers: wait for the cards
+        // that come in their place, not for a ghost
+        await sec.locator(".pm-card:not(.ghost)").first().waitFor();
         assert.equal(await sec.locator(".pm-ghkinds").count(), 1);
         assert.equal(await sec.locator(".pm-ghhave").count(), 0);
         assert.equal(await sec.locator(".pm-card").count(), GH.repos.length);
@@ -100,7 +102,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           await page.goto("http://magpie.test/?view=plugins");
           const sec = page.locator("#view-plugins .pm-ghsec");
           const cards = sec.locator(".pm-card");
-          await cards.first().waitFor();
+          await sec.locator(".pm-card:not(.ghost)").first().waitFor();
           assert.equal(await cards.count(), 31);
           const tr = (s) => page.evaluate((s) => t(s), s);
           if (lang !== "en") for (const s of ["Kind of plugin", "Installed or not", "Not installed", "Filter by name, author or description", "Filter the plugins on GitHub", "No plugin on GitHub matches"]) assert.notEqual(await tr(s), s, `${s} in ${lang}`);
@@ -114,7 +116,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           const wantHave = async (rs) => [await tr("All") + " · " + rs.length, await tr("Installed") + " · " + rs.filter(here).length, await tr("Not installed") + " · " + rs.filter((r) => !here(r)).length];
           assert.deepEqual(await have.allTextContents(), await wantHave(GH.repos));
           assert.equal(await sec.locator(".pm-ghhave .opt.on").textContent(), (await wantHave(GH.repos))[0]);
-          assert.deepEqual((await sec.locator(".pm-card.have .pm-name b").allInnerTexts()).sort(), names(GH.repos.filter(here)));
+          assert.deepEqual((await sec.locator(".pm-card.have .pm-name b").allTextContents()).sort(), names(GH.repos.filter(here)));
           // both strips and the field, nothing left over at this width: the
           // kinds in Japanese are wider than the bar at 420px
           const overflow = () => page.evaluate(() => {
@@ -152,7 +154,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           assert.deepEqual(await have.allTextContents(), await wantHave(GH.repos.filter((r) => kindOf(r) === "Middleware")));
           // installed: the two here, the middleware among them
           await have.nth(1).click();
-          assert.deepEqual(await cards.locator(".pm-name b").allInnerTexts(), names(GH.repos.filter((r) => kindOf(r) === "Middleware" && here(r))));
+          assert.deepEqual(await cards.locator(".pm-name b").allTextContents(), names(GH.repos.filter((r) => kindOf(r) === "Middleware" && here(r))));
           // the field narrows both strips' counts, as it does the kinds'
           await field.fill("doubao");
           const doubao0 = GH.repos.filter((r) => has(r, "doubao"));

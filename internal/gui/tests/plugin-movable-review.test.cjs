@@ -71,7 +71,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
       assert.equal(await page.locator("#view-providers").isHidden(), true, "Providers is still open");
       assert.equal(await page.locator("#modal .editor").count(), 0, "a provider's editor opened");
       await page.locator("#view-plugins .pm-card .pm-act.move").nth(subs.length - 1).waitFor();
-      const cards = await page.locator("#view-plugins .pm-card").evaluateAll((cs) => cs.filter((c) => c.querySelector(".pm-act.move")).map((c) => c.innerText));
+      const cards = await page.locator("#view-plugins .pm-card").evaluateAll((cs) => cs.filter((c) => c.querySelector(".pm-act.move")).map((c) => c.textContent));
       for (const [, name] of subs) assert.ok(cards.some((c) => c.includes(name) && c.includes(w.move)), `no card offers to move ${name}`);
       assert.deepEqual(errors, []);
     });

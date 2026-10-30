@@ -144,20 +144,20 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await view.locator(".pm-sechead h3", { hasText: w.ours }).waitFor();
         assert.equal(await view.locator(".pm-sec").count(), 1);
         assert.equal(await view.locator('.pm-card[data-pkg="opencode-copilot-auth"]').count(), 0);
-        assert.doesNotMatch(await view.innerText(), /OpenCode 社区|OpenCode's community/);
-        assert.equal(await view.locator('.pm-card[data-pkg="@magpie-community/opencode-qoder-auth"] .pm-act').innerText(), w.soon);
+        assert.doesNotMatch(await view.textContent(), /OpenCode 社区|OpenCode's community/);
+        assert.equal(await view.locator('.pm-card[data-pkg="@magpie-community/opencode-qoder-auth"] .pm-act').textContent(), w.soon);
         assert.ok(await view.locator('.pm-card[data-pkg="@magpie-community/opencode-qoder-auth"] .pm-act').isDisabled());
         // a plugin that takes a deprecated built-in's place says so, not
         // that magpie still has it too (molvqingtai on Discord: a new
         // user can't add the built-in at all)
         const replaces = view.locator('.pm-card[data-pkg="@magpie-community/opencode-zed-auth"] .pm-chip.soft');
-        assert.equal((await replaces.innerText()).trim(), w.replaces);
+        assert.equal((await replaces.textContent()).trim(), w.replaces);
         assert.match(await replaces.getAttribute("title"), w.replacesWhy);
         await shot(view, `plugins-discover-${engine}-${lang}`);
         await view.locator(".pm-find input").fill("copilot");
         const copilot = view.locator('.pm-card[data-pkg="opencode-copilot-auth"]');
         await copilot.locator(".pm-dl", { hasText: w.week }).waitFor();
-        assert.equal((await copilot.locator(".pm-by").innerText()).trim(), "thdxr");
+        assert.equal((await copilot.locator(".pm-by").textContent()).trim(), "thdxr");
 
         // a card's page: facts, links opened outside, the README without pictures
         await copilot.locator(".pm-sum").click();

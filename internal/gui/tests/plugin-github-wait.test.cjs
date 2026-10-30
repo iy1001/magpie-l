@@ -139,7 +139,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           assert.equal(await sec.locator(".pm-card.ghost").count(), 0);
           assert.equal(await sec.locator(".pm-ghlook").count(), 0);
           assert.equal(await sec.getAttribute("aria-busy"), null);
-          assert.deepEqual(await sec.locator(".pm-card .pm-name b").allInnerTexts(), ["opencode-claude-auth", "agy-staff"]);
+          assert.deepEqual(await sec.locator(".pm-card .pm-name b").allTextContents(), ["opencode-claude-auth", "agy-staff"]);
           await page.waitForFunction(() => !document.querySelector(".pm-arrive"));
           await shot(sec, `came-${engine}-${lang}-${width}`);
           assert.deepEqual(errors, []);

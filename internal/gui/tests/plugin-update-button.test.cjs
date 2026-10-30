@@ -53,6 +53,14 @@ const look = (b) => b.evaluate((e) => {
   const s = getComputedStyle(e);
   return { h: e.offsetHeight, w: e.offsetWidth, minW: s.minWidth, pad: s.paddingLeft + " " + s.paddingRight, font: s.fontSize + " " + s.fontWeight, radius: s.borderRadius, margin: s.margin, bg: s.backgroundColor, color: s.color };
 });
+// a card below the fold is not laid out until it nears the screen
+// (content-visibility), so its button is measured on screen, after the
+// frame that lays it out
+const lookOnScreen = async (b) => {
+  await b.scrollIntoViewIfNeeded();
+  for (let i = 0; i < 20 && !(await b.evaluate((e) => e.offsetHeight)); i++) await b.evaluate(() => new Promise(requestAnimationFrame));
+  return look(b);
+};
 
 function sameSize(got, want, what) {
   assert.equal(got.h, want.h, what + ": height");
@@ -88,8 +96,8 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         await get.waitFor();
         assert.equal((await up.textContent()).trim(), w.update);
         assert.equal((await get.textContent()).trim(), w.install);
-        const install = await look(get);
-        const card = await look(up);
+        const install = await lookOnScreen(get);
+        const card = await lookOnScreen(up);
         sameSize(card, install, "card");
         // nothing else on the card says Update in a smaller way
         assert.equal(await view.locator('.pm-card[data-pkg="opencode-copilot-auth"] .pm-chip.up').count(), 0);
@@ -103,13 +111,13 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
         const rowUp = row.locator("button.pm-act.pm-up");
         await rowUp.waitFor();
         assert.equal((await rowUp.textContent()).trim(), w.update);
-        const r = await look(rowUp);
+        const r = await lookOnScreen(rowUp);
         sameSize(r, install, "row");
         assert.equal(r.bg, card.bg, "the row's Update looks as the card's does");
         const all = view.locator(".pm-updates button.pm-act.pm-up");
         await all.waitFor();
         assert.equal((await all.textContent()).trim(), w.all);
-        const a = await look(all);
+        const a = await lookOnScreen(all);
         sameSize(a, install, "Update all");
         assert.equal(a.bg, card.bg, "Update all looks as the card's Update does");
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "no sideways scroll");
