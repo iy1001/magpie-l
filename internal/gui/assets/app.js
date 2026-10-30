@@ -295,7 +295,10 @@ function maskSpan(src, failed) {
 }
 const pngIcons = new Set(["crush", "zcode", "alma", "hanako", "cindy", "lody", "typesafe", "atomcode", "snow", "mlx-serve", "mothx", "zoo-code"]);
 
-function icon(name) {
+// lazy: a picture in a long list (Plugins' rows) is asked for when it
+// nears the screen. Each SVG an <img> draws is a document of its own in
+// the webview, ~0.6 MB, kept while the page is open (#909)
+function icon(name, lazy) {
   const kept = keptIcons?.get(name || "")?.shift();
   if (kept) { kept.removeAttribute("title"); return kept; }
   const e = el("span", "ic");
@@ -308,6 +311,7 @@ function icon(name) {
   if (name?.startsWith("file:")) {
     // a picture the user gave their own provider
     const img = el("img");
+    if (lazy) img.loading = "lazy";
     img.src = "/api/icons/" + encodeURIComponent(name.slice(5));
     img.alt = "";
     img.draggable = false;
@@ -318,6 +322,7 @@ function icon(name) {
   if (name) {
     if (name.endsWith("-color") || pngIcons.has(name)) {
       const img = el("img");
+      if (lazy) img.loading = "lazy";
       img.src = `icons/${name}.${pngIcons.has(name) ? "png" : "svg"}`;
       img.alt = "";
       img.draggable = false;
