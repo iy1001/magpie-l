@@ -57,7 +57,11 @@ const look = (b) => b.evaluate((e) => {
 // (content-visibility), so its button is measured on screen, after the
 // frame that lays it out
 const lookOnScreen = async (b) => {
-  await b.scrollIntoViewIfNeeded();
+  // npm's answer redraws the cards, and a redraw under the scroll detaches
+  // the one it was holding: ask again until one stays
+  for (let i = 0; ; i++) {
+    try { await b.scrollIntoViewIfNeeded(); break; } catch (e) { if (i === 4) throw e; await b.page().waitForTimeout(50); }
+  }
   for (let i = 0; i < 20 && !(await b.evaluate((e) => e.offsetHeight)); i++) await b.evaluate(() => new Promise(requestAnimationFrame));
   return look(b);
 };
