@@ -60,3 +60,32 @@ told apart), `--json`.
   is a different page.
 - One run is one sample. Alternating the two binaries a few times, as
   §0.3 and §7.4 did, keeps the machine's own noise out of the answer.
+
+# Measuring the page at the size this machine's instance shows
+
+A sandbox has no npm market and no GitHub results, so the page it shows is
+17 cards, while §12.3's was 122. `synthetic-page.cjs` measures the page at
+that size with the API faked — 122 community listings over the five kinds,
+each card wearing one of this machine's own stored pictures — and takes the
+assets of any tree it is pointed at, so two commits can be weighed against
+each other:
+
+```sh
+node internal/gui/tests/measure/synthetic-page.cjs --assets internal/gui/assets --rounds 5
+node internal/gui/tests/measure/synthetic-page.cjs --assets /tmp/older-assets --rounds 5
+```
+
+Flags: `--assets DIR` (required), `--cards N` (122), `--viewport WxH`
+(440x513, the size this machine's window opens at), `--lang en|zh`,
+`--icons DIR` (the pictures `/api/icons` serves; default
+`~/.config/magpie/icons`), `--rounds N` (1), `--json`.
+
+It runs in Playwright's Chromium, not WebView2: the absolute numbers are not
+§12's, and say nothing about the window's own renderer. What they do is put
+two trees on the same page and let the difference between them be read, and
+say where a page's cost sits: script builds the cards, style and layout draw
+them, and the pictures are decoded as they arrive.
+
+A tree without `content-visibility` on a card lays out and paints every card
+before the page settles, so the difference between two trees is mostly how
+much of the page was drawn, not how fast it was built.
