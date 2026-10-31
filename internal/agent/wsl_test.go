@@ -422,6 +422,50 @@ func TestWSLShownWatchIsNotTheReadWatch(t *testing.T) {
 	}
 }
 
+// An agent in a distro is built again on every read of the window's state
+// (the window asks every couple of seconds). What its files are is found
+// once and kept: a stat of a distro's file is a call over \\wsl.localhost,
+// and asking wsl.exe whether the distro runs — which a stat needs, or it
+// would start a stopped one — is a fork.
+func TestWSLAgentsBuiltAgainAskNothing(t *testing.T) {
+	syncHome(t)
+	root := t.TempDir()
+	jsonc := filepath.Join(root, "home", "me", ".config", "opencode", "opencode.jsonc")
+	os.MkdirAll(filepath.Dir(jsonc), 0o755)
+	os.WriteFile(jsonc, []byte("{}\n"), 0o644)
+	fakeWSL(t, "Ubuntu\r\n", "Ubuntu\r\n", map[string]string{"Ubuntu": "home:/home/me\ndir:.config/opencode\n"}, map[string]string{"Ubuntu": root})
+	asks := 0
+	fake := wslRun
+	wslRun = func(d time.Duration, args ...string) ([]byte, error) {
+		if strings.Join(args, " ") == "-l --running -q" {
+			asks++
+		}
+		return fake(d, args...)
+	}
+	build := func() {
+		t.Helper()
+		var found bool
+		for _, a := range wslAgentsOf(wslDistros()) {
+			if a.ID == "opencode@wsl:Ubuntu" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("no opencode@wsl:Ubuntu among the agents")
+		}
+	}
+	build()
+	base := asks
+	// the window asks again a couple of seconds later
+	wsl.Lock()
+	wsl.runAt = time.Now().Add(-(wslRunningAge + time.Second))
+	wsl.Unlock()
+	build()
+	if asks != base {
+		t.Fatalf("building the agents again asked wsl.exe %d times", asks-base)
+	}
+}
+
 // nor opens it.
 func TestWSLStoppedSinceNotOpened(t *testing.T) {
 	codexHome(t, "", "")

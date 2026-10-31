@@ -57,6 +57,11 @@ type place struct {
 	// listing saw running: a distro stopped since would be started by the
 	// stat of a file in it (place.stopped); nil off a distro
 	up func() bool
+	// ask answers whether there is a file, or a folder, at a path of the
+	// distro, for one that was asked before: an agent is built again on
+	// every read of the window's state, and each stat of a distro's file is
+	// a call over \\wsl.localhost; nil off a distro
+	ask func(path string, dir bool) bool
 	// version is the agent's CLI's there, as the probe found it; "" when
 	// not known (one on this machine is asked itself)
 	version string
@@ -116,6 +121,9 @@ func (p place) hermesDefault() string {
 // exists is whether there is a file or folder at path, as an agent looks
 // for the one it reads; false at a cold place.
 func (p place) exists(path string) bool {
+	if p.ask != nil {
+		return p.ask(path, false)
+	}
 	if p.stopped() {
 		return false
 	}
@@ -124,7 +132,15 @@ func (p place) exists(path string) bool {
 }
 
 // isDir is isDir at the place; false at a cold one.
-func (p place) isDir(path string) bool { return !p.stopped() && isDir(path) }
+func (p place) isDir(path string) bool {
+	if p.ask != nil {
+		return p.ask(path, true)
+	}
+	if p.stopped() {
+		return false
+	}
+	return isDir(path)
+}
 
 // stopped is whether magpie must not look into the place: a distro the
 // listing saw stopped, or one that has stopped since — asked of wsl.exe
@@ -209,6 +225,8 @@ type distro struct {
 	Running bool `json:"-"`
 	// up asks whether it runs now (wslUp), for one wslDistros listed
 	up func() bool
+	// facts are what its paths were found to be, shared by its copies
+	facts *wslFacts
 }
 
 // live is whether the distro runs now: asked of wsl.exe again, at most
@@ -219,6 +237,67 @@ func (d distro) live() bool {
 		return d.Running
 	}
 	return d.up()
+}
+
+// ask answers whether there is a file, or a folder, at a path of the
+// distro, as a stat there would, and keeps the answer: an agent is built
+// again on every read of the window's state, and each stat of a distro's
+// file is a call over \wsl.localhost — and a stat of a stopped one starts
+// it, which d.live settles first.
+func (d distro) ask(path string, dir bool) bool {
+	// answered before: no stat, so nothing of a stopped distro is touched,
+	// and wsl.exe needn't be asked whether it runs
+	if d.facts != nil {
+		if v, ok := d.facts.kept(path, dir); ok {
+			return v
+		}
+	}
+	// a stat would start a stopped distro: ask first
+	if !d.live() {
+		return false
+	}
+	v := statAt(path, dir)
+	if d.facts != nil {
+		d.facts.keep(path, dir, v)
+	}
+	return v
+}
+
+// wslFacts are what a distro's paths were last found to be, for the agents
+// built there: one per distro, shared by every copy of it, until the next
+// probe of it.
+type wslFacts struct {
+	sync.Mutex
+	v map[string]bool
+}
+
+func factsKey(path string, dir bool) string {
+	if dir {
+		return "d:" + path
+	}
+	return "f:" + path
+}
+
+func (f *wslFacts) kept(path string, dir bool) (bool, bool) {
+	f.Lock()
+	defer f.Unlock()
+	v, ok := f.v[factsKey(path, dir)]
+	return v, ok
+}
+
+func (f *wslFacts) keep(path string, dir, v bool) {
+	f.Lock()
+	f.v[factsKey(path, dir)] = v
+	f.Unlock()
+}
+
+// statAt is whether there is a file, or a folder, at path.
+func statAt(path string, dir bool) bool {
+	if dir {
+		return isDir(path)
+	}
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // local is a path inside the distro as magpie opens it.
@@ -276,7 +355,7 @@ func (d distro) place(id string) place {
 	if k, _, ok := strings.Cut(kind, "#"); ok {
 		kind = k
 	}
-	return place{home: d.local(d.Home), id: id, spell: d.native, sys: d.local, base: d.base, cold: !d.Running, up: d.live, version: d.Versions[kind]}
+	return place{home: d.local(d.Home), id: id, spell: d.native, sys: d.local, base: d.base, cold: !d.Running, up: d.live, ask: d.ask, version: d.Versions[kind]}
 }
 
 // wslKind is an agent magpie looks for in a distro: what the probe finds
@@ -1065,6 +1144,9 @@ func wslDistros() []distro {
 		d := wsl.seen[n]
 		if d == nil {
 			continue
+		}
+		if d.facts == nil {
+			d.facts = &wslFacts{v: map[string]bool{}}
 		}
 		c := *d
 		c.Running = wsl.running[n]
