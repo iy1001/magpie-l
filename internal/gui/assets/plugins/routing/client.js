@@ -44,7 +44,19 @@ function routingPage(part) {
   const box = $("#rt");
   if (!box) return;
   const NS = "http://www.w3.org/2000/svg";
-  const still = calm;
+  // The stage holds still: no magpies carrying a request out and its answer
+  // back, no pulsing dots, no flowing wires. In WebView2 that motion held a
+  // renderer and its GPU at over a core while requests were under way, for a
+  // picture that says the same thing without moving. Lighting up, the story,
+  // the tally and which account answered are unchanged; the rows still say
+  // what happened, in the order it happened. window.__magpieMotion = true
+  // brings the motion back for a test that watches a flight.
+  const MOTION = window.__magpieMotion === true;
+  document.documentElement.classList.toggle("rt-still", !MOTION);
+  const still = () => !MOTION || calm();
+  // the tray's Routing panel plays only while it is open, a moment at a time,
+  // so its own flights stay: its cost is nothing to the page's
+  const stillPanel = calm;
   const shown = () => !$("#view-routing").hidden && !document.hidden;
   // steady redraws a part of the page where the reader is: WebKit has no
   // scroll anchoring, and a part emptied and filled again, measured between,
@@ -7865,7 +7877,7 @@ function routingPage(part) {
     pRaf = 0;
     const going = [];
     for (const tr of pTrips) {
-      const k = pShown() && !still() ? Math.min(1, Math.max(0, (ts - tr.t0) / tr.ms)) : 1;
+      const k = pShown() && !stillPanel() ? Math.min(1, Math.max(0, (ts - tr.t0) / tr.ms)) : 1;
       const e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
       const L = pathLength(tr.n.wire);
       if (L) {
@@ -7886,9 +7898,9 @@ function routingPage(part) {
     pWait = [];
     for (const x of w) if (x.f() || performance.now() > x.by) x.res(); else pWait.push(x);
   }
-  const pRest = (ms) => new Promise((res) => setTimeout(res, pShown() && !still() ? ms : 0));
+  const pRest = (ms) => new Promise((res) => setTimeout(res, pShown() && !stillPanel() ? ms : 0));
   async function pPlay(id) {
-    if (!pBox || !pShown() || document.hidden || still() || pPlays.has(id) || pPlays.size >= 4) return;
+    if (!pBox || !pShown() || document.hidden || stillPanel() || pPlays.has(id) || pPlays.size >= 4) return;
     let r = routes.get(id);
     if (!r) return;
     pPlays.add(id);

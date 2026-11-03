@@ -58,6 +58,7 @@ function serve(lang, feed) {
 
 // counts of what the page measures, and of the frames it draws
 const init = () => {
+  window.__magpieMotion = true; // frames are what this counts, so the flights run
   const n = window.__n = { len: 0, pt: 0, lenAgain: 0, ptAgain: 0, fmt: 0, frames: 0 };
   const P = SVGGeometryElement.prototype, len = P.getTotalLength, pt = P.getPointAtLength, fmt = Number.prototype.toLocaleString;
   // what each path was measured at last, by its d: a length measured again

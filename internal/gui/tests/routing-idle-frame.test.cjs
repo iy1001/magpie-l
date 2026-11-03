@@ -72,6 +72,7 @@ function serve(lang, feed = [req(1)], next = []) {
 // counts the callbacks of the loop's own frame, whatever name the minifier
 // would give it: the function that asks for itself again
 const init = () => {
+  window.__magpieMotion = true; // the loop under test is the motion one
   const raf = window.requestAnimationFrame.bind(window);
   window.__frames = 0;
   window.__steps = 0;

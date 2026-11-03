@@ -89,6 +89,7 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
           flowing: document.querySelectorAll(".rt-wires path.live[d]").length,
           lit: document.querySelectorAll(".rt-wires path.lit[d]").length,
         }));
+        await page.addInitScript(() => { window.__magpieMotion = true; }); // a flight is what this watches
         await page.goto("http://magpie.test/?view=routing");
         await row.waitFor();
         await page.waitForFunction(() => document.querySelector(".rt-accts li.on em")?.textContent.trim());
