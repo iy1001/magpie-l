@@ -22,9 +22,10 @@ func init() {
 		Name: "Privacy masking", Sub: "Secrets, personal data and your own words go to vendors as placeholders, and come back as they were",
 		One: "Masking is on", Many: "Masking is on",
 		InUse: InUse,
-		// Insights › Masking: what masking did, request by request
-		Parts:  []pluginrt.Part{{Slot: "nav.page", Key: "masking"}},
-		Client: []string{"i18n.js", "redact.css", "client.js", "page.js"},
+		// Settings › Privacy is its page: what masking would do with a text
+		// (Try it), and the alert it sends. Insights › Masking, the page that
+		// listed each request, is gone, so the window has no part of it.
+		Client: []string{"i18n.js"},
 		Apply: func(c *pluginrt.Ctx) error {
 			c.OnDispose(gwmw.Mask(masking.Masker{}))
 			return nil

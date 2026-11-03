@@ -4862,3 +4862,8 @@ body .row.agent .ag-prefs .row.pref .who { display: block; }
 .sess-tools .led-rename { flex: none; width: 180px; height: 26px; padding: 0 8px; border-radius: 7px; font-size: 12px; }
 /* Settings › About › Open-source licenses: the notices, as written */
 .notices-text { margin: 0; font: 11px/1.5 var(--code); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Masked words as dots until Show, drawn by the redact plugin part of
+   Settings (plugins/redact/settings.js); the page that carried them went. */
+#redactList input.words.words-hidden { -webkit-text-security: disc; }
+#redactList .redact-eye { flex: none; }

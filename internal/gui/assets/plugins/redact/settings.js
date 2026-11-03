@@ -67,6 +67,28 @@ function redactWordsHidden() {
   renderRedact = function (s, keep) {
     draw(s, keep);
     redactWordsHidden();
-    if (s.redact || s.redactPersonal || (s.redactWords || []).length) redactRouteRow(s);
+    if (s.redact || s.redactPersonal || (s.redactWords || []).length) {
+      redactRouteRow(s);
+    }
+    maskAlertRow(s);
   };
+}
+
+// maskAlertRow: the Masking alert, which sat after the Masking page's list of
+// requests. That page is gone, so the row it alone carried lives here, beside
+// the settings it belongs to. Gateway mode leaves it out, as it does the other
+// alerts its desktop would show.
+function maskAlertRow(s) {
+  if (gatewayMode) return;
+  const r = el("div", "row pref"), who = el("div", "who"), val = el("div", "val");
+  who.append(el("div", "name", t("Masking alert")),
+    el("div", "sub wraps", t("A notification when masking swaps a value for the first time: its kind and how many, never the value itself")));
+  const control = segs([["off", t("Off")], ["on", t("On")]], s.maskAlert ? "on" : "off",
+    (v) => savePrefs({ ...prefsKeep(s), maskAlert: v === "on" }));
+  control.id = "maskAlertSegs";
+  val.append(control);
+  r.append(who, val);
+  r.id = "maskAlertRow";
+  r.dataset.feature = "redact"; // it was the page's: with the plugin off, it goes
+  ($("#redactList") || $("#setPage-privacy")).append(r);
 }

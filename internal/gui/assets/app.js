@@ -4327,8 +4327,6 @@ async function load(again) {
     // does: drawn again only on a change, with no skeleton between; on the
     // Overview, where the allowances are, that is opening them (#1588)
     if (view === "usage") await magpie.call("usage", "refresh", again);
-    // the Masking page names agents and providers from what came back
-    if (view === "masking") await magpie.call("masking", "refresh", again);
     // so is an open sync form (WebDAV, export, import): its passwords are
     // never sent back, so a rebuild would empty it
     if (view === "settings" && !syncOpen) await loadSettings();
@@ -21762,13 +21760,6 @@ function renderRedact(s, keep) {
   // rides on that event: nothing goes without it
   if (!s.noStats) rowIn(share, t("Share the agents, providers and models I use"), t("Sent with that event, by magpie's own ids, with how many of each, and how often each partner was shown, opened and added; a provider you added yourself is only “custom”. No names, addresses, accounts, keys or usage"),
     onOff(!s.noUsageStats, (on) => savePrefs({ ...keep, noUsageStats: !on })));
-  // what masking did is a page of its own, Insights › Masking
-  if (!featureHides($('#nav button[data-view="masking"]'))) {
-    const open = el("button", "", t("Open"));
-    open.type = "button";
-    open.onclick = () => openMaskRecord(0);
-    box.prepend(rowIn(box, t("What was masked"), t("Each request masking changed, what the vendor saw, and how, on Insights › Masking"), open));
-  }
 }
 
 // privacyModelRow: the local masking model (internal/pii); its state read
@@ -21892,7 +21883,11 @@ function pmSub(m) {
 }
 
 // ---------- what masking swapped (maskrec) ----------
-// a placeholder's value is asked only while pointed at (/api/masking/value), in memory alone
+// Settings › Privacy says what masking would do with a text the user types
+// (Try it, /api/masking/preview), and a masked call on the Gateway page or
+// the Routing page says how many values it swapped and of which kinds. The
+// page that listed the requests themselves is gone; what masking kept is
+// still recorded on this computer, and its endpoints still answer.
 const MASK_KINDS = {
   API_KEY: "API keys", PRIVATE_KEY: "Private keys", TOKEN: "Tokens", PASSWORD: "Passwords", SECRET: "Secrets",
   EMAIL: "Emails", PHONE: "Phone numbers", ID_CARD: "ID numbers", BANK_CARD: "Bank cards",
@@ -21904,15 +21899,29 @@ const MASK_KINDS = {
 const MASK_BY = { rule: "Rules", yours: "Your rules", word: "Your words", model: "Local model", known: "Seen before" };
 const SHIELD = "M8 1.8 13 3.6v4.1c0 3-2.1 5.4-5 6.5-2.9-1.1-5-3.5-5-6.5V3.6Z";
 const PLACEHOLDER = /\{\{[^{}\s]{1,64}\}\}/g;
-let maskSum = null;          // the summary Insights › Masking read last: its kinds' colours
-const maskValues = new Map(); // placeholder → what it stood for, as this magpie told it
+// maskMatches is text's stand-ins as matchAll gives them: its {{…}}
+// placeholders, and the made-up keys "Keep a key's form" sent (redact's
+// shape.go), the keys of info that are no placeholder, which only the
+// record's own list tells from the text around them (#3599). Settings' Try
+// it and the masked calls' badges read what masking swapped with it.
+const maskLookRes = new WeakMap();
+function maskMatches(text, info) {
+  let re = maskLookRes.get(info);
+  if (!re) {
+    const looks = [...info.keys()].filter((p) => p && !p.startsWith("{{")).sort((a, b) => b.length - a.length)
+      .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    re = looks.length ? new RegExp(PLACEHOLDER.source + "|" + looks.join("|"), "g") : PLACEHOLDER;
+    maskLookRes.set(info, re);
+  }
+  return text.matchAll(re);
+}
 const maskKindName = (k) => MASK_KINDS[k] ? t(MASK_KINDS[k]) : k;
 const maskByName = (b) => MASK_BY[b] ? t(MASK_BY[b]) : b;
-// a kind's colour is its place in the summary's ranking, so the bar, the
-// legend, the chips and the records say a kind in one colour
+// a kind's colour is worked out from its name, so the legend, the chips and
+// Settings' Try it say a kind in one colour, the same each time
 function maskColor(k) {
-  let i = (maskSum?.kinds || []).findIndex((x) => x.name === k);
-  if (i < 0) { i = 0; for (const c of k || "") i = (i * 31 + c.charCodeAt(0)) >>> 0; }
+  let i = 0;
+  for (const c of k || "") i = (i * 31 + c.charCodeAt(0)) >>> 0;
   return `var(--c${(i % 7) + 1})`;
 }
 // what a value looks like masked: what it starts with, the rest dots
@@ -21927,75 +21936,9 @@ function maskDot(k) {
   return d;
 }
 
-// maskValue: what placeholder p stood for, or null where this magpie no
-// longer knows. A value it doesn't know isn't kept as such: the same value
-// masked again after a restart is known again.
-function maskValue(p) {
-  if (maskValues.has(p)) return Promise.resolve(maskValues.get(p));
-  return api("masking/value?p=" + encodeURIComponent(p)).then((r) => {
-    if (typeof r?.value !== "string") return null;
-    maskValues.set(p, r.value);
-    return r.value;
-  }).catch(() => null);
-}
-// maskTip shows what a masked value was beside it, while it is pointed at
-// or focused: its kind, who found it, and the value itself, asked for then
-let maskTipEl = null;
-function maskTip(anchor, v) {
-  maskTipOff();
-  const tip = maskTipEl = el("div", "mask-tip");
-  tip.setAttribute("role", "tooltip");
-  const k = el("div", "k");
-  k.append(maskDot(v.kind), el("span", "", maskKindName(v.kind) + " · " + maskByName(v.by)));
-  const val = el("div", "v", "…");
-  tip.append(k, val);
-  if (v.meta) tip.append(el("div", "m", v.meta));
-  document.body.append(tip);
-  const place = () => {
-    const a = anchor.getBoundingClientRect(), b = tip.getBoundingClientRect();
-    const left = Math.max(8, Math.min(a.left + a.width / 2 - b.width / 2, innerWidth - b.width - 8));
-    const above = a.top - b.height - 8;
-    tip.style.left = left + "px";
-    tip.style.top = (above > 8 ? above : a.bottom + 8) + "px";
-  };
-  place();
-  maskValue(v.p).then((s) => {
-    if (maskTipEl !== tip) return;
-    if (s === null) {
-      val.className = "v gone";
-      val.textContent = t("Not in memory: magpie has restarted since. The value itself is never written to disk");
-    } else val.textContent = s;
-    place();
-  });
-}
-function maskTipOff() {
-  maskTipEl?.remove();
-  maskTipEl = null;
-}
-function maskTipOn(anchor, v) {
-  anchor.onmouseenter = anchor.onfocus = () => maskTip(anchor, v);
-  anchor.onmouseleave = anchor.onblur = maskTipOff;
-}
-
-// maskSnipTexts: a record's lines around its values, each piece of text
-// once where values side by side share it
-function maskSnipTexts(r) {
-  const core = (x) => x.replace(/^…|…$/g, "");
-  const all = [...new Set(Object.values(r.snips || {}))];
-  return all.filter((x, i) => !all.some((y, j) => j != i && (y.length > x.length || y.length == x.length && j < i) && y.includes(core(x))));
-}
-// maskPlace: a placeholder as the text carried it, in its kind's colour,
-// what it stood for shown while pointed at
-function maskPlace(cls, p, x) {
-  const kind = x?.k || p.slice(2, -2).replace(/_[^_]*$/, "");
-  const mark = el("mark", cls, p);
-  mark.style.setProperty("--k", maskColor(kind));
-  mark.tabIndex = 0;
-  maskTipOn(mark, { p, kind, by: x?.b || "known" });
-  return mark;
-}
 // maskedBadge: what masking swapped in one request (gateway's Masked), for
-// Recent calls and the Routing page; it opens that request's record
+// Recent calls and the Routing page; it opens Settings › Privacy, where
+// what masking kept is now shown
 function maskedBadge(m) {
   // a request whose values only went as written, which the user set a kind
   // to do, is told in amber with how many
@@ -22011,11 +21954,11 @@ function maskedBadge(m) {
   b.onkeydown = (e) => e.stopPropagation(); // Enter on it isn't the row's
   return b;
 }
-// openMaskRecord: Insights › Masking, on request key when there is one; the
-// tray panel opens the window on it
+// openMaskRecord: what masking kept is set up on Settings › Privacy, where
+// the Masking page's rows went; the badge beside a masked call opens it there.
 function openMaskRecord(key) {
-  if (mode !== "window") return void api("window/main?view=masking" + (key ? "&key=" + key : ""), {}).catch(() => {});
-  show("masking").then((went) => { if (went !== false && key && view === "masking") magpie.call("masking", "focus", key); });
+  if (mode !== "window") return void api("window/main?view=settings&tab=privacy", {}).catch(() => {});
+  show("settings").then((went) => { if (went !== false) $("#setTab-privacy")?.click(); });
 }
 
 // renderRedactRules: the user's own secret rules (#195), all set on their own each time

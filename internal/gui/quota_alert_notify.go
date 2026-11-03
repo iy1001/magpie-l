@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -139,8 +138,9 @@ func notice(goos, id, title, body string) notifications.NotificationOptions {
 }
 
 // clickView is the page a response to a notification opens, "" for none.
-// A click on an alert opens Usage; on a value masked, the 脱敏 page at the
-// request that masked it. On a turn's end, where the user goes is their
+// A click on an alert opens Usage, and on a value masked, Settings ›
+// Privacy, where what masking kept is set up and the alert's own switch is.
+// On a turn's end, where the user goes is their
 // agent, not magpie. On Linux only a click (linuxClick) is one: an alert
 // dismissed there opened the main window, maximised if it was left so,
 // over the desktop with the focus (#2513).
@@ -148,12 +148,8 @@ func clickView(goos string, r notifications.NotificationResponse) string {
 	if strings.HasPrefix(r.ID, turnNotice) || goos == "linux" && r.ActionIdentifier != linuxClick {
 		return ""
 	}
-	if rest, ok := strings.CutPrefix(r.ID, maskNotice); ok {
-		key, _, _ := strings.Cut(rest, "-")
-		if _, err := strconv.ParseInt(key, 10, 64); err != nil || key == "0" {
-			return "masking"
-		}
-		return "masking&key=" + key
+	if _, ok := strings.CutPrefix(r.ID, maskNotice); ok {
+		return "settings&tab=privacy"
 	}
 	return "usage"
 }

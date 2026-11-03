@@ -56,7 +56,9 @@ func shownRecord(r maskrec.Record, t gwmw.Teller) maskedRecord {
 	return out
 }
 
-// maskingRoutes are Settings → Privacy's record of what masking swapped:
+// maskingRoutes are what masking swapped, as the window may ask it. Only the
+// preview is read now: Insights › Masking, the page that asked the rest, is
+// gone, and what it listed is still recorded and still answered here.
 //   - GET /api/masking/summary?days= is maskrec.Sum;
 //   - GET /api/masking/records?before=&limit=&kind=&by=&agent=&provider=&blocked=
 //     a page of records, newest first (kind may list several, split by

@@ -29,7 +29,7 @@ func TestMainView(t *testing.T) {
 		{url.Values{"view": {"settings"}, "req": {"42"}}, "settings"},
 		{url.Values{"view": {"routing"}, "req": {"42&view=x"}}, "routing"},
 		{url.Values{"view": {"routing"}, "req": {"-1"}}, "routing"},
-		{url.Values{"view": {"masking"}, "key": {"1730000000123"}}, "masking&key=1730000000123"},
+		{url.Values{"view": {"masking"}, "key": {"1730000000123"}}, "masking"},
 		{url.Values{"view": {"masking"}, "key": {"7&view=settings"}}, "masking"},
 		{url.Values{"view": {"settings"}, "key": {"7"}}, "settings"},
 		{url.Values{"view": {"usage"}}, "usage"},
