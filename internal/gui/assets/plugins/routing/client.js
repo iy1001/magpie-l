@@ -44,16 +44,16 @@ function routingPage(part) {
   const box = $("#rt");
   if (!box) return;
   const NS = "http://www.w3.org/2000/svg";
-  // The stage holds still: no magpies carrying a request out and its answer
-  // back, no pulsing dots, no flowing wires. In WebView2 that motion held a
-  // renderer and its GPU at over a core while requests were under way, for a
-  // picture that says the same thing without moving. Lighting up, the story,
-  // the tally and which account answered are unchanged; the rows still say
-  // what happened, in the order it happened. window.__magpieMotion = true
-  // brings the motion back for a test that watches a flight.
-  const MOTION = window.__magpieMotion === true;
-  document.documentElement.classList.toggle("rt-still", !MOTION);
-  const still = () => !MOTION || calm();
+  // The stage holds still unless Settings asks for it: no magpies carrying a
+  // request out and its answer back, no pulsing dots, no flowing wires. In
+  // WebView2 that motion held a renderer and its GPU at over a core while
+  // requests were under way, for a picture that says the same thing without
+  // moving. Lighting up, the story, the tally and which account answered are
+  // unchanged; the rows still say what happened, in the order it happened.
+  // Settings' Routing stage motion turns it back on, and a test that watches
+  // a flight asks for it with window.__magpieMotion.
+  document.documentElement.classList.toggle("rt-still", !stageMoves(state.settings));
+  const still = () => !stageMoves(state.settings);
   // the tray's Routing panel plays only while it is open, a moment at a time,
   // so its own flights stay: its cost is nothing to the page's
   const stillPanel = calm;

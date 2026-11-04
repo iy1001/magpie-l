@@ -81,6 +81,33 @@ for (const engine of (process.env.BROWSER ? [process.env.BROWSER] : ["chromium",
     assert.deepEqual(still, { html: true, running: 0, animated: 0 }, "the stage moved");
     assert.deepEqual(errors, []);
   });
+  // Settings' Routing stage motion is what brings it back: the same page,
+  // with the magpies, the pulses and the wires its switch asks for.
+  test(`${engine}: Routing stage motion moves the stage again`, async (t) => {
+    state.settings.routingMotion = true;
+    t.after(() => { delete state.settings.routingMotion; });
+    const browser = await (engine === "webkit" ? webkit.launch() : chromium.launch({ channel: "chromium" }));
+    const page = await (await browser.newContext({ viewport: { width: 1100, height: 900 } })).newPage();
+    page.setDefaultTimeout(5000);
+    page.setDefaultNavigationTimeout(60000);
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    const feed = { on: true, n: 0 };
+    await page.route("**/*", serve(feed));
+    t.after(async () => { feed.closed = true; feed.wake?.(); await browser.close(); });
+    await page.goto("http://magpie.test/?view=routing");
+    await page.locator(".rt-req.wait").waitFor();
+    await page.waitForTimeout(1500);
+    const moving = await page.evaluate(() => {
+      const v = document.querySelector("#view-routing");
+      const running = v.getAnimations({ subtree: true }).filter((a) => a.playState === "running");
+      const animated = [...v.querySelectorAll("*")].filter((e) => getComputedStyle(e).animationName !== "none");
+      return { html: document.documentElement.classList.contains("rt-still"), moving: running.length + animated.length };
+    });
+    assert.equal(moving.html, false, "the switch on, the stage is still");
+    assert(moving.moving > 0, "the switch on, nothing on the stage moved");
+    assert.deepEqual(errors, []);
+  });
   test(`${engine}: the Routing page holds still while requests come`, async (t) => {
     const browser = await (engine === "webkit" ? webkit.launch() : chromium.launch({ channel: "chromium" }));
     const page = await (await browser.newContext({ viewport: { width: 1100, height: 900 } })).newPage();

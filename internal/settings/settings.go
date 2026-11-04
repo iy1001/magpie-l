@@ -50,6 +50,13 @@ type Settings struct {
 	// Motion does, for a computer or phone that the moving Routing page
 	// keeps busy (#3813).
 	ReduceMotion bool `json:"reduceMotion,omitempty"`
+	// RoutingMotion moves the Routing page's stage again: a magpie carrying
+	// a request out and its answer back, dots pulsing, wires flowing. Off,
+	// the page holds still and says the same thing in its rows; on, it is
+	// what a renderer and its GPU were measured at 172% of a core for
+	// (docs' perf notes), so it is the user's to ask for. Reduce motion
+	// stills it either way.
+	RoutingMotion bool `json:"routingMotion,omitempty"`
 	// NoBird keeps magpie's bird off the loading skeletons and the
 	// Plugins page's README, for a small server where its watch for them
 	// is work enough to matter (Yayoi_no_yume on X). Off means shown.

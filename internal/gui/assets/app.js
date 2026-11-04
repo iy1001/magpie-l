@@ -8408,6 +8408,17 @@ const IOS_EASE = "cubic-bezier(.32, .72, 0, 1)";
 // a declaration, so code above it can ask too
 // the system's Reduce Motion, or Settings' (#3813)
 function calm() { return document.documentElement.dataset.motion === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches; }
+// stageMoves is the Routing page's stage: its own switch in Settings, which
+// is off by default (#the page's motion measured over a core), and a test's
+// window.__magpieMotion for the ones that watch a flight. Reduce motion
+// stills it whatever the switch says.
+function stageMoves(s) {
+  if (window.__magpieMotion === true) return true;
+  return !!(s || prefs || {}).routingMotion && !calm();
+}
+// stageStill applies that to the page's html, so every animation and
+// transition in sight stops with it
+function stageStill(s) { document.documentElement.classList.toggle("rt-still", !stageMoves(s)); }
 // Settings' Loading bird turned off: no bird on a skeleton or a README
 function birdOff() { return document.documentElement.dataset.bird === "off"; }
 // magpie's bird in parts, its wing and tail free to move (the header's logo
@@ -19223,6 +19234,7 @@ function applyPrefs(s, rate) {
     }
   }
   if (!!s.reduceMotion !== (root.dataset.motion === "reduce")) window.holdStill(!!s.reduceMotion);
+  stageStill(s);
   if (!!s.noBird !== birdOff()) {
     if (s.noBird) root.dataset.bird = "off"; else delete root.dataset.bird;
     skelWatch();
@@ -19674,6 +19686,10 @@ function renderSettings() {
   $("#colorblindSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.colorblind ? "on" : "off", (v) => savePrefs({ ...keep, colorblind: v === "on" })));
   $("#reduceMotionSegs").title = t("Animations stand still, as with the system's Reduce Motion, so magpie keeps the computer less busy");
   $("#reduceMotionSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.reduceMotion ? "on" : "off", (v) => savePrefs({ ...keep, reduceMotion: v === "on" })));
+  // the Routing page's stage: still unless asked for, and Reduce motion stills it too
+  $("#routingMotionSegs").title = t("The Routing page's magpies, pulses and flowing wires cost a renderer and its GPU a core under traffic; Off keeps the page still and says the same thing in its rows");
+  $("#routingMotionSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.routingMotion ? "on" : "off", (v) => savePrefs({ ...keep, routingMotion: v === "on" })));
+  $("#routingMotionRow").hidden = !!s.reduceMotion;
   $("#birdSegs").title = t("magpie's bird hops on what is still loading; Off keeps it away, and magpie stops looking for it");
   $("#birdSegs").replaceChildren(segs([["off", t("Off")], ["on", t("On")]], s.noBird ? "off" : "on", (v) => savePrefs({ ...keep, noBird: v === "off" })));
   renderLangPick(s, keep);
@@ -22502,7 +22518,7 @@ function dockChoice(s) {
 
 // prefsKeep is what the settings page sends of s, all of it each time.
 function prefsKeep(s) {
-  return { theme: s.theme, colorblind: !!s.colorblind, reduceMotion: !!s.reduceMotion, noBird: !!s.noBird, lang: s.lang, tray: s.tray, dock: !!s.dock, dockWindow: !!s.dockWindow, dockNever: !!s.dockNever, lightweight: s.lightweight, keepAwake: !!s.keepAwake, keepAwakeDisplay: !!s.keepAwakeDisplay, noWSLAgents: !!s.noWSLAgents, quitNoAsk: !!s.quitNoAsk, proxy: s.proxy || "",
+  return { theme: s.theme, colorblind: !!s.colorblind, reduceMotion: !!s.reduceMotion, routingMotion: !!s.routingMotion, noBird: !!s.noBird, lang: s.lang, tray: s.tray, dock: !!s.dock, dockWindow: !!s.dockWindow, dockNever: !!s.dockNever, lightweight: s.lightweight, keepAwake: !!s.keepAwake, keepAwakeDisplay: !!s.keepAwakeDisplay, noWSLAgents: !!s.noWSLAgents, quitNoAsk: !!s.quitNoAsk, proxy: s.proxy || "",
     sessionTerminal: s.sessionTerminal || "",
     uiFont: s.uiFont || null, codeFont: s.codeFont || null,
     otel: s.otel || {},

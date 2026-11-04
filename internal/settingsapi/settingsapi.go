@@ -28,7 +28,7 @@ import (
 // written.
 var Keys = []string{
 	// Appearance
-	"theme", "colorblind", "reduceMotion", "noBird", "lang", "uiFont", "codeFont",
+	"theme", "colorblind", "reduceMotion", "routingMotion", "noBird", "lang", "uiFont", "codeFont",
 	// the tray, the Dock and this computer
 	"tray", "dock", "dockWindow", "dockNever", "lightweight", "keepAwake", "keepAwakeDisplay",
 	"noWSLAgents", "sessionTerminal", "signInLinkOnly", "quitNoAsk",
@@ -210,6 +210,10 @@ func Merge(body []byte, cur settings.Settings, web bool) (settings.Settings, err
 	// nor whether animations are stilled (#3813)
 	if _, sent := fields["reduceMotion"]; !sent {
 		in.ReduceMotion = cur.ReduceMotion
+	}
+	// nor whether the Routing page's stage moves
+	if _, sent := fields["routingMotion"]; !sent {
+		in.RoutingMotion = cur.RoutingMotion
 	}
 	// nor whether the loading bird is kept off
 	if _, sent := fields["noBird"]; !sent {
